@@ -3,7 +3,6 @@ import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
-export const runtime = 'nodejs'
 
 export async function GET(req) {
   if (!verifyToken(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

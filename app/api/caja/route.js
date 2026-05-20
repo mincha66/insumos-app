@@ -1,5 +1,4 @@
 export const runtime = 'nodejs'
-export const runtime = 'nodejs'
 import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
