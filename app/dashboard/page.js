@@ -50,7 +50,7 @@ export default function Dashboard() {
 
   function logout() { localStorage.removeItem('token'); router.push('/login') }
   function openModal(name, obj = null) { setModal(name); setEditObj(obj); setForm(obj || {}); setRemItems({}); setFacItems({}); if (name !== 'cotizacion') setCotItems([]); setPdfPreview(null) }
-  function closeModal() { setModal(null); setEditObj(null); setForm({}); setPdfPreview(null) }
+  function closeModal() { setModal(null); setEditObj(null); setForm({}); setPdfPreview(null); setCotItems([]) }
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   async function saveProducto() { setLoading(true); if (editObj) await api('/api/productos/' + editObj.id, 'PUT', form); else await api('/api/productos', 'POST', form); await loadAll(); closeModal(); setLoading(false) }
@@ -167,14 +167,14 @@ export default function Dashboard() {
       const t = localStorage.getItem('token')
       const res = await fetch('/api/cotizaciones/' + obj.id, { headers: { 'Authorization': 'Bearer ' + t } })
       const fresh = await res.json()
-      const freshItems = (fresh.cotizacion_items || []).map(i => ({ ...i }))
+      const freshItems = (fresh.cotizacion_items || []).map(i => ({ producto_nombre: i.producto_nombre, cantidad: i.cantidad, valor_unitario: i.valor_unitario, subtotal: i.subtotal }))
       setEditObj(fresh)
-      setForm({ ...fresh })
-      cotItemsRef.current = freshItems
+      setForm({ numero: fresh.numero, fecha: fresh.fecha, plantilla: fresh.plantilla, notas: fresh.notas, cliente_nombre: fresh.cliente_nombre, cliente_ciudad: fresh.cliente_ciudad, cliente_nit: fresh.cliente_nit, proponente_nombre: fresh.proponente_nombre, proponente_email: fresh.proponente_email, proponente_telefono: fresh.proponente_telefono })
       setCotItems(freshItems)
-      setTimeout(() => { setCotItems([...cotItemsRef.current]); setModal('cotizacion') }, 100)
+      setModal('cotizacion')
     } else {
       const num = 'COT-' + String(cotizaciones.length + 1).padStart(3, '0')
+      setEditObj(null)
       setForm({ numero: num, fecha: new Date().toISOString().split('T')[0], plantilla: 'oficial', notas: '' })
       setCotItems([])
       setModal('cotizacion')
