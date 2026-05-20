@@ -166,15 +166,17 @@ export default function Dashboard() {
       const t = localStorage.getItem('token')
       const res = await fetch('/api/cotizaciones/' + obj.id, { headers: { 'Authorization': 'Bearer ' + t } })
       const fresh = await res.json()
+      const freshItems = (fresh.cotizacion_items || []).map(i => ({ ...i }))
       setEditObj(fresh)
       setForm({ ...fresh })
-      setCotItems((fresh.cotizacion_items || []).map(i => ({ ...i })))
+      setCotItems(freshItems)
+      setTimeout(() => { setCotItems(freshItems); setModal('cotizacion') }, 50)
     } else {
       const num = 'COT-' + String(cotizaciones.length + 1).padStart(3, '0')
       setForm({ numero: num, fecha: new Date().toISOString().split('T')[0], plantilla: 'oficial', notas: '' })
       setCotItems([])
+      setModal('cotizacion')
     }
-    setModal('cotizacion')
   }
 
   function addCotItem() { setCotItems(prev => [...prev, { producto_nombre: '', cantidad: 1, valor_unitario: 0, subtotal: 0 }]) }
