@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
@@ -7,12 +7,12 @@ export const runtime = 'nodejs'
 export async function PUT(req, { params }) {
   if (!verifyToken(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const body = await req.json()
-  const { data } = await supabase.from('productos').update(body).eq('id', params.id).select().single()
+  const { data } = await getSupabase().from('productos').update(body).eq('id', params.id).select().single()
   return NextResponse.json(data)
 }
 
 export async function DELETE(req, { params }) {
   if (!verifyToken(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  await supabase.from('productos').delete().eq('id', params.id)
+  await getSupabase().from('productos').delete().eq('id', params.id)
   return NextResponse.json({ ok: true })
 }
