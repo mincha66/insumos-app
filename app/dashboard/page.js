@@ -46,7 +46,7 @@ export default function Dashboard() {
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   async function saveProducto() { setLoading(true); if (editObj) await api('/api/productos/' + editObj.id, 'PUT', form); else await api('/api/productos', 'POST', form); await loadAll(); closeModal(); setLoading(false) }
-  async function delProducto(id) { await api('/api/productos/' + id, 'DELETE'); loadAll() }
+  async function delProducto(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; const r = await api('/api/productos/' + id, 'DELETE'); await loadAll() }
 
   async function cargaMasiva(e) {
     const file = e.target.files[0]; if (!file) return
@@ -60,10 +60,10 @@ export default function Dashboard() {
   }
 
   async function saveCliente() { setLoading(true); if (editObj) await api('/api/clientes/' + editObj.id, 'PUT', form); else await api('/api/clientes', 'POST', form); await loadAll(); closeModal(); setLoading(false) }
-  async function delCliente(id) { await api('/api/clientes/' + id, 'DELETE'); loadAll() }
+  async function delCliente(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; const r = await api('/api/clientes/' + id, 'DELETE'); await loadAll() }
 
   async function saveRemitente() { setLoading(true); if (editObj) await api('/api/remitentes/' + editObj.id, 'PUT', form); else await api('/api/remitentes', 'POST', form); await loadAll(); closeModal(); setLoading(false) }
-  async function delRemitente(id) { await api('/api/remitentes/' + id, 'DELETE'); loadAll() }
+  async function delRemitente(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; const r = await api('/api/remitentes/' + id, 'DELETE'); await loadAll() }
 
   function toggleProdRem(id) {
     const p = productos.find(x => x.id == id); if (!p) return
@@ -77,7 +77,7 @@ export default function Dashboard() {
     await loadAll(); closeModal(); setLoading(false)
   }
 
-  async function delRemision(id) { await api('/api/remisiones/' + id, 'DELETE'); loadAll() }
+  async function delRemision(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; const r = await api('/api/remisiones/' + id, 'DELETE'); await loadAll() }
 
   async function editRemision(r) {
     const items = {}
@@ -192,9 +192,9 @@ export default function Dashboard() {
     await api('/api/facturas', 'POST', { fecha: form.fecha, cliente_nombre: form.cliente_nombre, numero, total, items })
     await loadAll(); closeModal(); setLoading(false)
   }
-  async function delFactura(id) { await api('/api/facturas/' + id, 'DELETE'); loadAll() }
+  async function delFactura(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; const r = await api('/api/facturas/' + id, 'DELETE'); await loadAll() }
   async function saveMovimiento() { setLoading(true); await api('/api/caja', 'POST', { ...form, caja: currentCaja }); await loadCaja(currentCaja); closeModal(); setLoading(false) }
-  async function delMovimiento(id) { await api('/api/caja/' + id, 'DELETE'); loadCaja(currentCaja) }
+  async function delMovimiento(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; const r = await api('/api/caja/' + id, 'DELETE'); await loadCaja(currentCaja) }
 
   const saldoCaja = cajaMovs.reduce((s, m) => m.tipo === 'ingreso' ? s + Number(m.valor) : s - Number(m.valor), 0)
   const navItems = [{ id: 'dashboard', icon: '🏠', label: 'Dashboard' }, { id: 'remisiones', icon: '📋', label: 'Remisiones' }, { id: 'facturas', icon: '🧾', label: 'Facturas' }, { id: 'caja', icon: '💰', label: 'Caja' }, { id: 'productos', icon: '📦', label: 'Productos' }, { id: 'clientes', icon: '👤', label: 'Clientes' }, { id: 'remitentes', icon: '🏷️', label: 'Remitentes' }]
