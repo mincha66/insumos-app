@@ -416,13 +416,25 @@ export default function Dashboard() {
               </div>
               <div className="field" style={{ marginBottom: 14 }}>
                 <label>Agregar producto</label>
-                <select onChange={e => { if (e.target.value) { toggleProdRem(e.target.value); e.target.value = '' } }} style={{ width: '100%', background: '#fff', border: '1px solid #dde1ea', borderRadius: 6, padding: '9px 12px', color: '#111928', fontFamily: 'inherit', fontSize: 13 }}>
-                  <option value="">Seleccionar producto...</option>
-                  {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.ref ? '(' + p.ref + ')' : ''}</option>)}
-                </select>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="Buscar producto..."
+                    id="buscarProdRem"
+                    onChange={e => {
+                      const val = e.target.value.toLowerCase()
+                      const opts = document.querySelectorAll('#selectProdRem option')
+                      opts.forEach(o => { o.style.display = o.text.toLowerCase().includes(val) ? '' : 'none' })
+                    }}
+                    style={{ width: '100%', background: '#fff', border: '1px solid #dde1ea', borderRadius: '6px 6px 0 0', padding: '9px 12px', color: '#111928', fontFamily: 'inherit', fontSize: 13, borderBottom: 'none' }}
+                  />
+                  <select id="selectProdRem" size="5" onChange={e => { if (e.target.value) { toggleProdRem(e.target.value); e.target.value = '' } }} style={{ width: '100%', background: '#fff', border: '1px solid #dde1ea', borderRadius: '0 0 6px 6px', color: '#111928', fontFamily: 'inherit', fontSize: 13 }}>
+                    {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.ref ? '(' + p.ref + ')' : ''}</option>)}
+                  </select>
+                </div>
               </div>
               {Object.values(remItems).length > 0 && (
-                <table style={{ marginBottom: 14, background: '#f8faff', border: '1px solid #dde1ea', borderRadius: 6 }}>
+                <table style={{ marginBottom: 14 }}>
                   <thead><tr><th>Producto</th><th>Unidad</th><th>Cantidad</th><th></th></tr></thead>
                   <tbody>{Object.values(remItems).map(it => (
                     <tr key={it.prod.id}>
