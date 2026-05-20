@@ -8,8 +8,9 @@ function getDB() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 }
 
-export async function DELETE(req, { params }) {
+export async function DELETE(req, context) {
   if (!verifyToken(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const { error } = await getDB().from('caja_movimientos').delete().eq('id', params.id)
+  const { id } = await context.params
+  const { error } = await getDB().from('caja_movimientos').delete().eq('id', id)
   return NextResponse.json({ ok: !error, error: error?.message })
 }
