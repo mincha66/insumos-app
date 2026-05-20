@@ -265,15 +265,6 @@ export default function Dashboard() {
     doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(30,58,95)
     doc.text('TOTAL: $' + Number(c.total).toLocaleString('es-CO'), ml + usable, y, { align: 'right' }); y += 12
 
-    if (c.notas) {
-      if (y > ph - 50) { doc.addPage(); y = 15 }
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(30,58,95)
-      doc.text('Nota:', ml, y); y += 5
-      doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80); doc.setFontSize(9)
-      const notaLineas = doc.splitTextToSize(c.notas, usable)
-      doc.text(notaLineas, ml, y)
-    }
-
     const totalPages = doc.internal.getNumberOfPages()
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i)
@@ -411,12 +402,6 @@ export default function Dashboard() {
     doc.setFont('helvetica','bold'); doc.setTextColor(0,100,180)
     doc.text('Total', ml+colProd+colCant+colUnit-5, y+5)
     doc.text('$'+Number(c.total).toLocaleString('es-CO'), ml+usable, y+5, { align:'right' }); y += 14
-
-    if (c.notas) {
-      if (y > ph - 40) { doc.addPage(); y = 15 }
-      doc.setTextColor(50,50,50); doc.setFont('helvetica','normal'); doc.setFontSize(9)
-      doc.text(doc.splitTextToSize(c.notas, usable), ml, y); y += 10
-    }
 
     const totalPages = doc.internal.getNumberOfPages()
     for (let i = 1; i <= totalPages; i++) {
