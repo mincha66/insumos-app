@@ -425,6 +425,12 @@ export default function Dashboard() {
   }
 
 
+  function generarPdfCot(c) {
+    if (c.plantilla === 'sabana') return generarPdfCotSabana(c)
+    if (c.plantilla === 'fenny') return generarPdfCotFenny(c)
+    return generarPdfCotOficial(c)
+  }
+
   function generarXlsxCot(c) {
     const XLSX = window.XLSX
     if (!XLSX) { alert('Cargando librería Excel, intenta de nuevo'); return }
