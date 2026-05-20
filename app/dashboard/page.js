@@ -132,7 +132,7 @@ export default function Dashboard() {
     items.forEach((item, idx) => {
       const nombreLineas = doc.splitTextToSize(item.producto_nombre || '', colProd - 4)
       const rowH = Math.max(6, nombreLineas.length * 5)
-      if (idx % 2 === 0) { doc.setFillColor(245, 247, 250); doc.rect(ml, y, usable, rowH, 'F') }
+      
       doc.setDrawColor(208, 213, 221); doc.setLineWidth(0.2)
       doc.line(ml, y, ml + usable, y)
       doc.line(ml + colItem, y, ml + colItem, y + rowH)
