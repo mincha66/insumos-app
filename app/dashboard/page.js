@@ -161,11 +161,14 @@ export default function Dashboard() {
   async function delMovimiento(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/caja/' + id, 'DELETE'); await loadCaja(currentCaja) }
 
   // COTIZACIONES
-  function openCotizacion(obj = null) {
-    setEditObj(obj)
+  async function openCotizacion(obj = null) {
     if (obj) {
-      setForm({ ...obj })
-      setCotItems((obj.cotizacion_items || []).map(i => ({ ...i })))
+      const t = localStorage.getItem('token')
+      const res = await fetch('/api/cotizaciones/' + obj.id, { headers: { 'Authorization': 'Bearer ' + t } })
+      const fresh = await res.json()
+      setEditObj(fresh)
+      setForm({ ...fresh })
+      setCotItems((fresh.cotizacion_items || []).map(i => ({ ...i })))
     } else {
       const num = 'COT-' + String(cotizaciones.length + 1).padStart(3, '0')
       setForm({ numero: num, fecha: new Date().toISOString().split('T')[0], plantilla: 'oficial', notas: '' })

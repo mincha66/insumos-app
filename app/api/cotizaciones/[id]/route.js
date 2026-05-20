@@ -26,3 +26,10 @@ export async function DELETE(req, context) {
   const { error } = await getDB().from('cotizaciones').delete().eq('id', id)
   return NextResponse.json({ ok: !error, error: error?.message })
 }
+
+export async function GET(req, context) {
+  if (!verifyToken(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const { id } = await context.params
+  const { data } = await getDB().from('cotizaciones').select('*, cotizacion_items(*)').eq('id', id).single()
+  return NextResponse.json(data)
+}
