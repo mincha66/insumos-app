@@ -48,7 +48,7 @@ export default function Dashboard() {
   useEffect(() => { if (token) { loadAll(); loadCaja(currentCaja) } }, [token, loadAll, loadCaja, currentCaja])
 
   function logout() { localStorage.removeItem('token'); router.push('/login') }
-  function openModal(name, obj = null) { setModal(name); setEditObj(obj); setForm(obj || {}); setRemItems({}); setFacItems({}); setCotItems([]); setPdfPreview(null) }
+  function openModal(name, obj = null) { setModal(name); setEditObj(obj); setForm(obj || {}); setRemItems({}); setFacItems({}); if (name !== 'cotizacion') setCotItems([]); setPdfPreview(null) }
   function closeModal() { setModal(null); setEditObj(null); setForm({}); setPdfPreview(null) }
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
