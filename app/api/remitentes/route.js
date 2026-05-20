@@ -2,9 +2,11 @@ import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 
+export const runtime = 'nodejs'
+
 export async function GET(req) {
   if (!verifyToken(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const { data } = await supabase.from('remitentes').select('*').order('id')
+  const { data } = await supabase.from('remitentes').select('*').order('nombre')
   return NextResponse.json(data)
 }
 
