@@ -562,7 +562,7 @@ export default function Dashboard() {
                         <td><span className="tag">{c.numero}</span></td>
                         <td>{c.fecha}</td><td>{c.cliente_nombre}</td>
                         <td><span className="badge badge-blue">{c.plantilla === 'oficial' ? 'Oficial Sugerida' : c.plantilla === 'sabana' ? 'Insumos Sabana' : c.plantilla === 'fenny' ? 'Luz Fenny' : c.plantilla}</span></td>
-                        <td style={{ color: '#057a55', fontWeight: 600 }}>${Number(c.total).toLocaleString()}</td>
+                        <td style={{ color: '#057a55', fontWeight: 600 }}>${Number(c.total).toLocaleString('es-CO')}</td>
                         <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 4 }}>
                           <button className="btn btn-sm" onClick={() => openCotizacion(c)}>✏️</button>
                           <button className="btn btn-sm" onClick={() => previewPdfCot(c)}>👁️</button>
@@ -590,7 +590,7 @@ export default function Dashboard() {
                   <tbody>{facturas.map(f => (
                     <tr key={f.id}>
                       <td><span className="tag">{f.numero}</span></td><td>{f.fecha}</td><td>{f.cliente_nombre}</td>
-                      <td style={{ color: '#057a55', fontWeight: 600 }}>${Number(f.total).toLocaleString()}</td>
+                      <td style={{ color: '#057a55', fontWeight: 600 }}>${Number(f.total).toLocaleString('es-CO')}</td>
                       <td><button className="btn btn-sm btn-danger" onClick={() => delFactura(f.id)}>🗑️</button></td>
                     </tr>
                   ))}</tbody>
@@ -612,7 +612,7 @@ export default function Dashboard() {
               <div style={{ background: '#1e3a5f', borderRadius: 10, padding: '20px 24px', marginBottom: 16, display: 'flex', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: 12, color: '#93c5fd', fontWeight: 500 }}>Saldo actual — Caja {currentCaja}</div>
-                  <div style={{ fontSize: 32, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>${saldoCaja.toLocaleString()}</div>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>${saldoCaja.toLocaleString('es-CO')}</div>
                 </div>
                 <button className="btn btn-accent" style={{ marginLeft: 'auto' }} onClick={() => openModal('movimiento')}>+ Movimiento</button>
               </div>
@@ -620,7 +620,7 @@ export default function Dashboard() {
                 <div className="card-header"><div className="card-title">Movimientos</div></div>
                 {cajaMovs.length === 0 ? <div className="empty-state"><div className="icon">💰</div><p>No hay movimientos</p></div> : (
                   <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Valor</th><th>Saldo</th><th></th></tr></thead>
-                    <tbody>{(() => { let acum = 0; return cajaMovs.map(m => { acum += m.tipo === 'ingreso' ? Number(m.valor) : -Number(m.valor); return (<tr key={m.id}><td>{m.fecha}</td><td>{m.concepto}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontWeight: 600 }}>{m.tipo === 'ingreso' ? '↑ Ingreso' : '↓ Egreso'}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontFamily: 'monospace' }}>{m.tipo === 'ingreso' ? '+' : '-'}${Number(m.valor).toLocaleString()}</td><td style={{ fontFamily: 'monospace' }}>${acum.toLocaleString()}</td><td><button className="btn btn-sm btn-danger" onClick={() => delMovimiento(m.id)}>🗑️</button></td></tr>) }) })()}</tbody>
+                    <tbody>{(() => { let acum = 0; return cajaMovs.map(m => { acum += m.tipo === 'ingreso' ? Number(m.valor) : -Number(m.valor); return (<tr key={m.id}><td>{m.fecha}</td><td>{m.concepto}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontWeight: 600 }}>{m.tipo === 'ingreso' ? '↑ Ingreso' : '↓ Egreso'}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontFamily: 'monospace' }}>{m.tipo === 'ingreso' ? '+' : '-'}${Number(m.valor).toLocaleString('es-CO')}</td><td style={{ fontFamily: 'monospace' }}>${acum.toLocaleString('es-CO')}</td><td><button className="btn btn-sm btn-danger" onClick={() => delMovimiento(m.id)}>🗑️</button></td></tr>) }) })()}</tbody>
                   </table>
                 )}
               </div>
@@ -745,7 +745,7 @@ export default function Dashboard() {
               </div>
             </div>)}
 
-            {modal === 'factura' && (<div><div className="form-row"><div className="field"><label>Fecha</label><input type="date" value={form.fecha || ''} onChange={e => setF('fecha', e.target.value)} /></div><div className="field"><label>Cliente</label><select value={form.cliente_nombre || ''} onChange={e => setF('cliente_nombre', e.target.value)}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}</select></div></div><div className="field" style={{ marginBottom: 14 }}><label>Agregar producto</label><select onChange={e => { if (e.target.value) { toggleProdFac(productos.find(x => x.id == e.target.value)); e.target.value = '' } }} style={{ width: '100%', background: '#fff', border: '1px solid #dde1ea', borderRadius: 6, padding: '9px 12px', color: '#111928', fontFamily: 'inherit', fontSize: 13 }}><option value="">Seleccionar...</option>{productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>{Object.values(facItems).length > 0 && <div><table><thead><tr><th>Producto</th><th>Precio</th><th>Cant.</th><th>Subtotal</th><th></th></tr></thead><tbody>{Object.values(facItems).map(it => (<tr key={it.prod.id}><td>{it.prod.nombre}</td><td>${Number(it.prod.precio || 0).toLocaleString()}</td><td><input type="number" min="1" value={it.qty} onChange={e => setFacItems(prev => ({ ...prev, [it.prod.id]: { ...prev[it.prod.id], qty: Number(e.target.value) || 1 } }))} style={{ width: 60, background: '#fff', border: '1px solid #dde1ea', borderRadius: 4, padding: '4px 6px', textAlign: 'center' }} /></td><td>${((it.prod.precio || 0) * it.qty).toLocaleString()}</td><td><button onClick={() => setFacItems(prev => { const n = { ...prev }; delete n[it.prod.id]; return n })} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>✕</button></td></tr>))}</tbody></table><div style={{ textAlign: 'right', fontWeight: 700, fontSize: 15, color: '#1a56db', padding: 8 }}>Total: ${Object.values(facItems).reduce((s, i) => s + (i.prod.precio || 0) * i.qty, 0).toLocaleString()}</div></div>}<div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveFactura}>{loading ? 'Guardando...' : 'Guardar'}</button></div></div>)}
+            {modal === 'factura' && (<div><div className="form-row"><div className="field"><label>Fecha</label><input type="date" value={form.fecha || ''} onChange={e => setF('fecha', e.target.value)} /></div><div className="field"><label>Cliente</label><select value={form.cliente_nombre || ''} onChange={e => setF('cliente_nombre', e.target.value)}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}</select></div></div><div className="field" style={{ marginBottom: 14 }}><label>Agregar producto</label><select onChange={e => { if (e.target.value) { toggleProdFac(productos.find(x => x.id == e.target.value)); e.target.value = '' } }} style={{ width: '100%', background: '#fff', border: '1px solid #dde1ea', borderRadius: 6, padding: '9px 12px', color: '#111928', fontFamily: 'inherit', fontSize: 13 }}><option value="">Seleccionar...</option>{productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>{Object.values(facItems).length > 0 && <div><table><thead><tr><th>Producto</th><th>Precio</th><th>Cant.</th><th>Subtotal</th><th></th></tr></thead><tbody>{Object.values(facItems).map(it => (<tr key={it.prod.id}><td>{it.prod.nombre}</td><td>${Number(it.prod.precio || 0).toLocaleString('es-CO')}</td><td><input type="number" min="1" value={it.qty} onChange={e => setFacItems(prev => ({ ...prev, [it.prod.id]: { ...prev[it.prod.id], qty: Number(e.target.value) || 1 } }))} style={{ width: 60, background: '#fff', border: '1px solid #dde1ea', borderRadius: 4, padding: '4px 6px', textAlign: 'center' }} /></td><td>${((it.prod.precio || 0) * it.qty).toLocaleString('es-CO')}</td><td><button onClick={() => setFacItems(prev => { const n = { ...prev }; delete n[it.prod.id]; return n })} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>✕</button></td></tr>))}</tbody></table><div style={{ textAlign: 'right', fontWeight: 700, fontSize: 15, color: '#1a56db', padding: 8 }}>Total: ${Object.values(facItems).reduce((s, i) => s + (i.prod.precio || 0) * i.qty, 0).toLocaleString('es-CO')}</div></div>}<div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveFactura}>{loading ? 'Guardando...' : 'Guardar'}</button></div></div>)}
 
             {modal === 'movimiento' && (<div><div className="form-row"><div className="field"><label>Fecha</label><input type="date" value={form.fecha || ''} onChange={e => setF('fecha', e.target.value)} /></div><div className="field"><label>Tipo</label><select value={form.tipo || 'ingreso'} onChange={e => setF('tipo', e.target.value)}><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option></select></div></div><div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Concepto</label><input value={form.concepto || ''} onChange={e => setF('concepto', e.target.value)} /></div></div><div className="form-row"><div className="field"><label>Valor</label><input type="number" value={form.valor || ''} onChange={e => setF('valor', e.target.value)} /></div></div><div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveMovimiento}>{loading ? 'Guardando...' : 'Registrar'}</button></div></div>)}
           </div>
@@ -822,14 +822,14 @@ export default function Dashboard() {
                       </td>
                       <td><input type="number" min="1" value={item.cantidad} onChange={e => updateCotItem(idx, 'cantidad', Number(e.target.value))} style={{ width: 70, background: '#fff', border: '1px solid #dde1ea', borderRadius: 4, padding: '5px 8px', textAlign: 'center', fontSize: 12 }} /></td>
                       <td><input type="number" value={item.valor_unitario} onChange={e => updateCotItem(idx, 'valor_unitario', Number(e.target.value))} style={{ width: 110, background: '#fff', border: '1px solid #dde1ea', borderRadius: 4, padding: '5px 8px', textAlign: 'right', fontSize: 12 }} /></td>
-                      <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#1a56db', fontWeight: 600 }}>${Number(item.subtotal).toLocaleString()}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#1a56db', fontWeight: 600 }}>${Number(item.subtotal).toLocaleString('es-CO')}</td>
                       <td><button onClick={() => removeCotItem(idx)} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 16 }}>✕</button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <div style={{ textAlign: 'right', padding: '10px 0', fontWeight: 700, fontSize: 15, color: '#1a56db' }}>
-                TOTAL: ${cotItems.reduce((s, i) => s + Number(i.subtotal), 0).toLocaleString()}
+                TOTAL: ${cotItems.reduce((s, i) => s + Number(i.subtotal), 0).toLocaleString('es-CO')}
               </div>
             </div>
 
