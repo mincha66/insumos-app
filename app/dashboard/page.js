@@ -271,7 +271,7 @@ export default function Dashboard() {
                           <button className="btn btn-sm" onClick={() => previewPdf(r)}>👁️ Ver</button>
                           <button className="btn btn-sm btn-success" onClick={() => downloadPdf(r)}>⬇️ PDF</button>
                           <button className="btn btn-sm" style={{ borderColor: '#6366f1', color: '#6366f1' }} onClick={() => enviarEmail(r)}>{sendingEmail ? '...' : '📧'}</button>
-                          <button className="btn btn-sm btn-danger" onClick={() => delRemision(r.id)}>🗑️</button>
+                          <button className="btn btn-sm btn-danger" onClick={() => delRemision(r.id)}>🗑 Eliminar</button>
                         </td>
                       </tr>
                     ))}</tbody>
@@ -293,7 +293,7 @@ export default function Dashboard() {
                     <tr key={f.id}>
                       <td><span className="tag">{f.numero}</span></td><td>{f.fecha}</td><td>{f.cliente_nombre}</td>
                       <td style={{ color: '#057a55', fontWeight: 600 }}>${Number(f.total).toLocaleString()}</td>
-                      <td><button className="btn btn-sm btn-danger" onClick={() => delFactura(f.id)}>🗑️</button></td>
+                      <td><button className="btn btn-sm btn-danger" onClick={() => delFactura(f.id)}>🗑 Eliminar</button></td>
                     </tr>
                   ))}</tbody>
                 </table>
@@ -322,7 +322,7 @@ export default function Dashboard() {
                 <div className="card-header"><div className="card-title">Movimientos</div></div>
                 {cajaMovs.length === 0 ? <div className="empty-state"><div className="icon">💰</div><p>No hay movimientos</p></div> : (
                   <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Valor</th><th>Saldo</th><th></th></tr></thead>
-                    <tbody>{(() => { let acum = 0; return cajaMovs.map(m => { acum += m.tipo === 'ingreso' ? Number(m.valor) : -Number(m.valor); return (<tr key={m.id}><td>{m.fecha}</td><td>{m.concepto}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontWeight: 600 }}>{m.tipo === 'ingreso' ? '↑ Ingreso' : '↓ Egreso'}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontFamily: 'monospace' }}>{m.tipo === 'ingreso' ? '+' : '-'}${Number(m.valor).toLocaleString()}</td><td style={{ fontFamily: 'monospace' }}>${acum.toLocaleString()}</td><td><button className="btn btn-sm btn-danger" onClick={() => delMovimiento(m.id)}>🗑️</button></td></tr>) }) })()}</tbody>
+                    <tbody>{(() => { let acum = 0; return cajaMovs.map(m => { acum += m.tipo === 'ingreso' ? Number(m.valor) : -Number(m.valor); return (<tr key={m.id}><td>{m.fecha}</td><td>{m.concepto}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontWeight: 600 }}>{m.tipo === 'ingreso' ? '↑ Ingreso' : '↓ Egreso'}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontFamily: 'monospace' }}>{m.tipo === 'ingreso' ? '+' : '-'}${Number(m.valor).toLocaleString()}</td><td style={{ fontFamily: 'monospace' }}>${acum.toLocaleString()}</td><td><button className="btn btn-sm btn-danger" onClick={() => delMovimiento(m.id)}>🗑 Eliminar</button></td></tr>) }) })()}</tbody>
                   </table>
                 )}
               </div>
@@ -345,7 +345,7 @@ export default function Dashboard() {
                   <tbody>{productos.map(p => (
                     <tr key={p.id}>
                       <td><span className="tag">{p.ref}</span></td><td>{p.nombre}</td><td>{p.unidad || '—'}</td>
-                      <td><button className="btn btn-sm" style={{ marginRight: 4 }} onClick={() => openModal('producto', p)}>✏️</button><button className="btn btn-sm btn-danger" onClick={() => delProducto(p.id)}>🗑️</button></td>
+                      <td><button className="btn btn-sm" style={{ marginRight: 4 }} onClick={() => openModal('producto', p)}>✏️</button><button className="btn btn-sm btn-danger" onClick={() => delProducto(p.id)}>🗑 Eliminar</button></td>
                     </tr>
                   ))}</tbody>
                 </table>
@@ -364,7 +364,7 @@ export default function Dashboard() {
                   <tbody>{clientes.map(c => (
                     <tr key={c.id}>
                       <td>{c.nombre}</td><td>{c.nit || '—'}</td><td>{c.telefono || '—'}</td>
-                      <td><button className="btn btn-sm" style={{ marginRight: 4 }} onClick={() => openModal('cliente', c)}>✏️</button><button className="btn btn-sm btn-danger" onClick={() => delCliente(c.id)}>🗑️</button></td>
+                      <td><button className="btn btn-sm" style={{ marginRight: 4 }} onClick={() => openModal('cliente', c)}>✏️</button><button className="btn btn-sm btn-danger" onClick={() => delCliente(c.id)}>🗑 Eliminar</button></td>
                     </tr>
                   ))}</tbody>
                 </table>
@@ -383,7 +383,7 @@ export default function Dashboard() {
                   <tbody>{remitentes.map(r => (
                     <tr key={r.id}>
                       <td>{r.nombre}</td><td>{r.cedula || '—'}</td><td>{r.telefono || '—'}</td><td>{r.ciudad || '—'}</td>
-                      <td><button className="btn btn-sm" style={{ marginRight: 4 }} onClick={() => openModal('remitente', r)}>✏️</button><button className="btn btn-sm btn-danger" onClick={() => delRemitente(r.id)}>🗑️</button></td>
+                      <td><button className="btn btn-sm" style={{ marginRight: 4 }} onClick={() => openModal('remitente', r)}>✏️</button><button className="btn btn-sm btn-danger" onClick={() => delRemitente(r.id)}>🗑 Eliminar</button></td>
                     </tr>
                   ))}</tbody>
                 </table>
