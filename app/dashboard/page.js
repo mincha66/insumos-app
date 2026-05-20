@@ -94,12 +94,12 @@ export default function Dashboard() {
   async function updateRemision() {
     setLoading(true)
     const items = Object.values(remItems).map(i => ({ producto_nombre: i.prod.nombre, producto_ref: i.prod.ref, producto_unidad: i.prod.unidad, cantidad: i.qty }))
-    await supabaseDeleteItems(form.editId)
+    // items se borran en el PUT
     await api('/api/remisiones/' + form.editId, 'PUT', { fecha: form.fecha, cliente_nombre: form.cliente_nombre, remitente_nombre: form.remitente_nombre, items })
     await loadAll(); closeModal(); setLoading(false)
   }
 
-  async function supabaseDeleteItems(id) { await api('/api/remisiones/' + id + '/items', 'DELETE') }
+  
 
   function generarPdfRemision(r) {
     const jsPDF = window.jspdf?.jsPDF
