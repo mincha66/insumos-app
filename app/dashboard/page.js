@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const fileRef = useRef()
   const plantillaRef = useRef()
+  const cotItemsRef = useRef([])
 
   useEffect(() => { const t = localStorage.getItem('token'); if (!t) { router.push('/login'); return }; setToken(t) }, [router])
 
@@ -169,8 +170,9 @@ export default function Dashboard() {
       const freshItems = (fresh.cotizacion_items || []).map(i => ({ ...i }))
       setEditObj(fresh)
       setForm({ ...fresh })
+      cotItemsRef.current = freshItems
       setCotItems(freshItems)
-      setTimeout(() => { setCotItems(freshItems); setModal('cotizacion') }, 50)
+      setTimeout(() => { setCotItems([...cotItemsRef.current]); setModal('cotizacion') }, 100)
     } else {
       const num = 'COT-' + String(cotizaciones.length + 1).padStart(3, '0')
       setForm({ numero: num, fecha: new Date().toISOString().split('T')[0], plantilla: 'oficial', notas: '' })
