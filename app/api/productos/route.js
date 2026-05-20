@@ -20,3 +20,4 @@ export async function POST(req) {
   const { data } = await supabase.from('productos').insert(body).select().single()
   return NextResponse.json(data)
 }
+

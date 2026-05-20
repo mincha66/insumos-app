@@ -1,3 +1,4 @@
+export const runtime = 'nodejs'
 import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
@@ -18,3 +19,4 @@ export async function POST(req) {
   const { data } = await supabase.from('facturas').select('*, factura_items(*)').eq('id', factura.id).single()
   return NextResponse.json(data)
 }
+

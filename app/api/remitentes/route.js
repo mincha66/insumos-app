@@ -16,3 +16,4 @@ export async function POST(req) {
   const { data } = await supabase.from('remitentes').insert(body).select().single()
   return NextResponse.json(data)
 }
+
