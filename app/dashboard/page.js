@@ -144,8 +144,7 @@ export default function Dashboard() {
     })
     doc.line(ml, y, ml + usable, y)
     doc.setDrawColor(30, 58, 95); doc.setLineWidth(0.4)
-    const tableTop = 15 + 10 + 6 + 6 + 8
-    doc.rect(ml, tableTop + 8, usable, y - tableTop - 8, 'S')
+    
 
     y += 10
     doc.setFontSize(9.5); doc.setFont('helvetica', 'normal')
