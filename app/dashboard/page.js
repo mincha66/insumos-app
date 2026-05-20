@@ -278,9 +278,14 @@ export default function Dashboard() {
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i)
       doc.setFillColor(30,58,95); doc.rect(0, ph-30, pw, 30, 'F')
-      doc.setTextColor(255,255,255); doc.setFont('helvetica','normal'); doc.setFontSize(10)
-      if (c.proponente_telefono) doc.text('📞 ' + c.proponente_telefono, ml, ph - 18)
-      if (c.proponente_email) doc.text('✉ ' + c.proponente_email, ml + 55, ph - 18)
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','normal'); doc.setFontSize(8)
+      if (c.notas) {
+        const notaLineas = doc.splitTextToSize(c.notas, usable - 20)
+        doc.text(notaLineas, ml, ph - 24)
+      }
+      doc.setFontSize(9)
+      if (c.proponente_telefono) doc.text('Tel: ' + c.proponente_telefono, ml, ph - 8)
+      if (c.proponente_email) doc.text(c.proponente_email, ml + 50, ph - 8)
     }
     return doc
   }
@@ -416,10 +421,15 @@ export default function Dashboard() {
     const totalPages = doc.internal.getNumberOfPages()
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i)
-      doc.setFillColor(0,120,200); doc.rect(0, ph-20, pw*0.5, 20, 'F')
-      doc.setFillColor(0,180,180); doc.rect(pw*0.5, ph-20, pw*0.5, 20, 'F')
-      doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','normal')
-      if (c.proponente_nombre) doc.text(c.proponente_nombre, ml, ph-10)
+      doc.setFillColor(0,120,200); doc.rect(0, ph-25, pw*0.5, 25, 'F')
+      doc.setFillColor(0,180,180); doc.rect(pw*0.5, ph-25, pw*0.5, 25, 'F')
+      doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','normal')
+      if (c.notas) {
+        const notaLineas = doc.splitTextToSize(c.notas, pw*0.45)
+        doc.text(notaLineas, ml, ph-20)
+      }
+      doc.setFontSize(8)
+      if (c.proponente_nombre) doc.text(c.proponente_nombre, pw*0.5 + 5, ph-10)
     }
     return doc
   }
@@ -795,7 +805,7 @@ export default function Dashboard() {
                 <select value={form.proponente_nombre || ''} onChange={e => {
                   const r = remitentes.find(x => x.nombre === e.target.value)
                   setF('proponente_nombre', e.target.value)
-                  if (r) { setF('proponente_email', r.email || ''); setF('proponente_telefono', r.telefono || '') }
+                  if (r) { setF('proponente_email', r.email || ''); setF('proponente_telefono', r.telefono || ''); setF('proponente_cedula', r.cedula || '') }
                 }}>
                   <option value="">Seleccionar...</option>
                   {remitentes.map(r => <option key={r.id} value={r.nombre}>{r.nombre}</option>)}
