@@ -169,13 +169,13 @@ export default function Dashboard() {
       const fresh = await res.json()
       const freshItems = (fresh.cotizacion_items || []).map(i => ({ producto_nombre: i.producto_nombre, cantidad: i.cantidad, valor_unitario: i.valor_unitario, subtotal: i.subtotal }))
       setEditObj(fresh)
-      setForm({ numero: fresh.numero, fecha: fresh.fecha, plantilla: fresh.plantilla, notas: fresh.notas, cliente_nombre: fresh.cliente_nombre, cliente_ciudad: fresh.cliente_ciudad, cliente_nit: fresh.cliente_nit, proponente_nombre: fresh.proponente_nombre, proponente_email: fresh.proponente_email, proponente_telefono: fresh.proponente_telefono })
+      setForm({ numero: fresh.numero, fecha: fresh.fecha, plantilla: fresh.plantilla, notas: fresh.notas, titulo: fresh.titulo || 'Cotización de Insumos', texto_adicional: fresh.texto_adicional || '', cliente_nombre: fresh.cliente_nombre, cliente_ciudad: fresh.cliente_ciudad, cliente_nit: fresh.cliente_nit, proponente_nombre: fresh.proponente_nombre, proponente_email: fresh.proponente_email, proponente_telefono: fresh.proponente_telefono, proponente_cedula: fresh.proponente_cedula || '' })
       setCotItems(freshItems)
       setModal('cotizacion')
     } else {
       const num = 'COT-' + String(cotizaciones.length + 1).padStart(3, '0')
       setEditObj(null)
-      setForm({ numero: num, fecha: new Date().toISOString().split('T')[0], plantilla: 'oficial', notas: '' })
+      setForm({ numero: num, fecha: new Date().toISOString().split('T')[0], plantilla: 'oficial', notas: '', titulo: 'Cotización de Insumos', texto_adicional: '', proponente_cedula: '' })
       setCotItems([])
       setModal('cotizacion')
     }
@@ -209,127 +209,144 @@ export default function Dashboard() {
     const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight()
     const ml = 15, usable = pw - 30
 
-    // Header azul oscuro esquinas
     doc.setFillColor(30, 58, 95)
     doc.rect(0, 0, pw, 35, 'F')
     doc.setFillColor(30, 58, 95)
     doc.rect(0, ph - 30, pw, 30, 'F')
 
-    // Título
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(20)
-    doc.text(c.fecha || '', pw - 20, 15, { align: 'right' })
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
+    doc.text(c.fecha || '', pw - 15, 15, { align: 'right' })
 
-    let y = 50
-    doc.setTextColor(30, 58, 95); doc.setFont('helvetica', 'bold'); doc.setFontSize(14)
-    doc.text(c.cliente_nombre || '', ml, y); y += 7
-    if (c.cliente_ciudad) { doc.setFontSize(11); doc.setFont('helvetica', 'normal'); doc.text(c.cliente_ciudad, ml, y); y += 14 }
-    else y += 7
+    let y = 45
+    doc.setTextColor(30, 58, 95); doc.setFont('helvetica', 'bold'); doc.setFontSize(16)
+    doc.text(c.titulo || 'Cotización de Insumos', ml, y); y += 7
+    if (c.texto_adicional) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(80,80,80)
+      doc.text(c.texto_adicional, ml, y); y += 7
+    }
+    y += 3
+    doc.setTextColor(30, 58, 95); doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
+    doc.text(c.cliente_nombre || '', ml, y); y += 6
+    if (c.cliente_ciudad) { doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(80,80,80); doc.text(c.cliente_ciudad, ml, y); y += 10 }
+    else y += 4
 
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
-    doc.text('Proponente: ' + (c.proponente_nombre || ''), ml, y); y += 6
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(80, 80, 80)
-    if (c.proponente_email) { doc.text(c.proponente_email, ml, y); y += 5 }
-    if (c.proponente_telefono) { doc.text(c.proponente_telefono, ml, y); y += 10 }
-    else y += 5
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(30,58,95)
+    doc.text('Proponente: ' + (c.proponente_nombre || ''), ml, y); y += 5
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(80,80,80)
+    if (c.proponente_cedula) { doc.text('C.C. ' + c.proponente_cedula, ml, y); y += 4 }
+    if (c.proponente_email) { doc.text(c.proponente_email, ml, y); y += 4 }
+    if (c.proponente_telefono) { doc.text(c.proponente_telefono, ml, y); y += 8 }
+    else y += 4
 
-    // Tabla header
     const colProd = usable * 0.55, colCant = usable * 0.13, colUnit = usable * 0.16, colTot = usable * 0.16
     const hH = 8
     doc.setFillColor(30, 58, 95); doc.rect(ml, y, usable, hH, 'F')
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9)
     doc.text('Producto', ml + 3, y + 5.5)
-    doc.text('Cantidad', ml + colProd + colCant / 2, y + 5.5, { align: 'center' })
-    doc.text('Unitario', ml + colProd + colCant + colUnit / 2, y + 5.5, { align: 'center' })
-    doc.text('Total', ml + colProd + colCant + colUnit + colTot / 2, y + 5.5, { align: 'center' })
+    doc.text('Cantidad', ml + colProd + colCant/2, y + 5.5, { align: 'center' })
+    doc.text('Unitario', ml + colProd + colCant + colUnit/2, y + 5.5, { align: 'center' })
+    doc.text('Total', ml + colProd + colCant + colUnit + colTot/2, y + 5.5, { align: 'center' })
     y += hH
 
-    doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(9)
     const items = c.cotizacion_items || []
     items.forEach(item => {
+      if (y > ph - 60) { doc.addPage(); y = 15 }
       const lineas = doc.splitTextToSize(item.producto_nombre || '', colProd - 4)
       const rH = Math.max(7, lineas.length * 5)
-      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2); doc.line(ml, y, ml + usable, y)
+      doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml, y, ml+usable, y)
       doc.text(lineas, ml + 3, y + 4.5)
-      doc.text(String(item.cantidad), ml + colProd + colCant / 2, y + rH / 2 + 1.5, { align: 'center' })
-      doc.text('$' + Number(item.valor_unitario).toLocaleString(), ml + colProd + colCant + colUnit / 2, y + rH / 2 + 1.5, { align: 'center' })
-      doc.text('$' + Number(item.subtotal).toLocaleString(), ml + colProd + colCant + colUnit + colTot / 2, y + rH / 2 + 1.5, { align: 'center' })
+      doc.text(String(item.cantidad), ml + colProd + colCant/2, y + rH/2 + 1.5, { align: 'center' })
+      doc.text('$' + Number(item.valor_unitario).toLocaleString('es-CO'), ml + colProd + colCant + colUnit/2, y + rH/2 + 1.5, { align: 'center' })
+      doc.text('$' + Number(item.subtotal).toLocaleString('es-CO'), ml + colProd + colCant + colUnit + colTot/2, y + rH/2 + 1.5, { align: 'center' })
       y += rH
     })
-    doc.line(ml, y, ml + usable, y); y += 8
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(30, 58, 95)
-    doc.text('TOTAL: $' + Number(c.total).toLocaleString(), ml + usable, y, { align: 'right' }); y += 12
+    doc.line(ml, y, ml+usable, y); y += 8
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(30,58,95)
+    doc.text('TOTAL: $' + Number(c.total).toLocaleString('es-CO'), ml + usable, y, { align: 'right' }); y += 12
 
     if (c.notas) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 58, 95)
+      if (y > ph - 50) { doc.addPage(); y = 15 }
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(30,58,95)
       doc.text('Nota:', ml, y); y += 5
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80); doc.setFontSize(9)
+      doc.setFont('helvetica','normal'); doc.setTextColor(80,80,80); doc.setFontSize(9)
       const notaLineas = doc.splitTextToSize(c.notas, usable)
       doc.text(notaLineas, ml, y)
     }
 
-    // Footer
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
-    if (c.proponente_telefono) doc.text('📞 ' + c.proponente_telefono, ml, ph - 18)
-    if (c.proponente_email) doc.text('✉ ' + c.proponente_email, ml + 50, ph - 18)
-
+    const totalPages = doc.internal.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      doc.setFillColor(30,58,95); doc.rect(0, ph-30, pw, 30, 'F')
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','normal'); doc.setFontSize(10)
+      if (c.proponente_telefono) doc.text('📞 ' + c.proponente_telefono, ml, ph - 18)
+      if (c.proponente_email) doc.text('✉ ' + c.proponente_email, ml + 55, ph - 18)
+    }
     return doc
   }
+
 
   function generarPdfCotSabana(c) {
     const jsPDF = window.jspdf?.jsPDF; if (!jsPDF) { alert('Cargando PDF'); return null }
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-    const pw = doc.internal.pageSize.getWidth(), ml = 15, usable = pw - 30
+    const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight(), ml = 15, usable = pw - 30
     let y = 15
 
-    doc.setFillColor(180, 100, 200); doc.rect(0, 0, pw * 0.08, 35, 'F')
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(28); doc.setTextColor(180, 100, 200)
-    doc.text('Cotización', ml + 5, 25); y = 40
+    doc.setFillColor(180, 100, 200); doc.rect(0, 0, pw * 0.08, 40, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(26); doc.setTextColor(180, 100, 200)
+    doc.text(c.titulo || 'Cotización de Insumos', ml + 5, 22)
+    if (c.texto_adicional) {
+      doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100)
+      doc.text(c.texto_adicional, ml + 5, 30)
+    }
+    y = 45
 
-    // Info empresa y cliente en 2 columnas
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(50, 50, 50)
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(50,50,50)
     doc.text(c.proponente_nombre || '', ml, y)
-    doc.text('Creada: ' + (c.fecha || ''), pw / 2, y); y += 5
-    doc.setFont('helvetica', 'normal')
-    doc.text('Cotización N.º: ' + (c.numero || ''), pw / 2, y); y += 5
-    doc.text('Elaborada para: ' + (c.cliente_nombre || ''), pw / 2, y); y += 14
+    doc.text('Creada: ' + (c.fecha || ''), pw/2, y); y += 5
+    doc.setFont('helvetica','normal')
+    if (c.proponente_cedula) { doc.text('C.C. ' + c.proponente_cedula, ml, y) }
+    doc.text('Cotización N.º: ' + (c.numero || ''), pw/2, y); y += 5
+    if (c.proponente_email) { doc.text(c.proponente_email, ml, y) }
+    doc.text('Elaborada para: ' + (c.cliente_nombre || ''), pw/2, y); y += 5
+    if (c.proponente_telefono) { doc.text('Tel: ' + c.proponente_telefono, ml, y) }
+    if (c.cliente_ciudad) { doc.text(c.cliente_ciudad, pw/2, y) }
+    y += 12
 
-    if (c.proponente_email) { doc.text(c.proponente_email, ml, y - 9) }
-    if (c.proponente_telefono) { doc.text(c.proponente_telefono, ml, y - 4) }
-
-    // Tabla
-    const colProd = usable * 0.55, colCant = usable * 0.13, colUnit = usable * 0.16, colTot = usable * 0.16
-    const hH = 8
-    doc.setFillColor(180, 100, 200); doc.rect(ml, y, usable, hH, 'F')
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
-    doc.text('Producto', ml + colProd / 2, y + 5.5, { align: 'center' })
-    doc.text('Cantidad', ml + colProd + colCant / 2, y + 5.5, { align: 'center' })
-    doc.text('Unitario', ml + colProd + colCant + colUnit / 2, y + 5.5, { align: 'center' })
-    doc.text('Total', ml + colProd + colCant + colUnit + colTot / 2, y + 5.5, { align: 'center' })
+    const colProd = usable*0.55, colCant = usable*0.13, colUnit = usable*0.16, colTot = usable*0.16, hH = 8
+    doc.setFillColor(180,100,200); doc.rect(ml, y, usable, hH, 'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9)
+    doc.text('Producto', ml + colProd/2, y+5.5, { align:'center' })
+    doc.text('Cantidad', ml+colProd+colCant/2, y+5.5, { align:'center' })
+    doc.text('Unitario', ml+colProd+colCant+colUnit/2, y+5.5, { align:'center' })
+    doc.text('Total', ml+colProd+colCant+colUnit+colTot/2, y+5.5, { align:'center' })
     y += hH
 
-    doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(9)
     const items = c.cotizacion_items || []
     items.forEach(item => {
+      if (y > ph - 50) { doc.addPage(); y = 15 }
       const lineas = doc.splitTextToSize(item.producto_nombre || '', colProd - 4)
       const rH = Math.max(7, lineas.length * 5)
-      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2); doc.line(ml, y, ml + usable, y)
-      doc.text(lineas, ml + 3, y + 4.5)
-      doc.text(String(item.cantidad), ml + colProd + colCant / 2, y + rH / 2 + 1.5, { align: 'center' })
-      doc.text('$' + Number(item.valor_unitario).toLocaleString(), ml + colProd + colCant + colUnit / 2, y + rH / 2 + 1.5, { align: 'center' })
-      doc.text('$' + Number(item.subtotal).toLocaleString(), ml + colProd + colCant + colUnit + colTot / 2, y + rH / 2 + 1.5, { align: 'center' })
+      doc.setDrawColor(200,200,200); doc.setLineWidth(0.2); doc.line(ml, y, ml+usable, y)
+      doc.text(lineas, ml+3, y+4.5)
+      doc.text(String(item.cantidad), ml+colProd+colCant/2, y+rH/2+1.5, { align:'center' })
+      doc.text('$'+Number(item.valor_unitario).toLocaleString('es-CO'), ml+colProd+colCant+colUnit/2, y+rH/2+1.5, { align:'center' })
+      doc.text('$'+Number(item.subtotal).toLocaleString('es-CO'), ml+colProd+colCant+colUnit+colTot/2, y+rH/2+1.5, { align:'center' })
       y += rH
     })
-    doc.line(ml, y, ml + usable, y); y += 12
+    doc.line(ml, y, ml+usable, y); y += 12
 
     if (c.notas) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(180, 100, 200)
+      if (y > ph - 40) { doc.addPage(); y = 15 }
+      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(180,100,200)
       doc.text('Términos y condiciones:', ml, y); y += 6
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50); doc.setFontSize(9)
-      const notaLineas = doc.splitTextToSize(c.notas, usable)
-      doc.text(notaLineas, ml, y)
+      doc.setFont('helvetica','normal'); doc.setTextColor(50,50,50); doc.setFontSize(9)
+      doc.text(doc.splitTextToSize(c.notas, usable), ml, y)
     }
     return doc
   }
+
 
   function generarPdfCotFenny(c) {
     const jsPDF = window.jspdf?.jsPDF; if (!jsPDF) { alert('Cargando PDF'); return null }
@@ -337,73 +354,76 @@ export default function Dashboard() {
     const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight(), ml = 15, usable = pw - 30
     let y = 15
 
-    // Header azul con degradado
     doc.setFillColor(0, 120, 200); doc.rect(0, 0, pw, 40, 'F')
-    doc.setFillColor(0, 180, 180); doc.rect(pw * 0.7, 0, pw * 0.3, 40, 'F')
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(28)
-    doc.text('COTIZACIÓN', pw / 2, 25, { align: 'center' })
+    doc.setFillColor(0, 180, 180); doc.rect(pw*0.7, 0, pw*0.3, 40, 'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(22)
+    doc.text(c.titulo || 'COTIZACIÓN', pw/2, 18, { align:'center' })
+    if (c.texto_adicional) {
+      doc.setFontSize(10); doc.setFont('helvetica','normal')
+      doc.text(c.texto_adicional, pw/2, 28, { align:'center' })
+    }
     y = 50
 
-    // Info en 2 columnas
-    doc.setTextColor(0, 120, 200); doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
+    doc.setTextColor(0,120,200); doc.setFont('helvetica','bold'); doc.setFontSize(10)
     doc.text('COTIZACIÓN', ml, y)
-    doc.text('CLIENTE', pw / 2, y); y += 5
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50)
+    doc.text('CLIENTE', pw/2, y); y += 5
+    doc.setFont('helvetica','normal'); doc.setTextColor(50,50,50)
     doc.text(c.proponente_nombre || '', ml, y)
-    doc.setTextColor(0, 120, 200); doc.setFont('helvetica', 'bold')
-    doc.text(c.cliente_nombre || '', pw / 2, y); y += 5
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50)
+    doc.setTextColor(0,120,200); doc.setFont('helvetica','bold')
+    doc.text(c.cliente_nombre || '', pw/2, y); y += 5
+    doc.setFont('helvetica','normal'); doc.setTextColor(50,50,50)
+    if (c.proponente_cedula) { doc.text('C.C. ' + c.proponente_cedula, ml, y) }
+    if (c.cliente_ciudad) doc.text(c.cliente_ciudad, pw/2, y)
+    y += 5
     doc.text('Nº. ' + (c.numero || ''), ml, y)
-    if (c.cliente_ciudad) doc.text(c.cliente_ciudad, pw / 2, y)
-    y += 5; doc.text(c.fecha || '', ml, y); y += 15
+    y += 5; doc.text(c.fecha || '', ml, y)
+    if (c.proponente_telefono) { doc.text('Tel: ' + c.proponente_telefono, ml, y+5) }
+    y += 14
 
-    // Tabla
-    const colProd = usable * 0.52, colCant = usable * 0.12, colUnit = usable * 0.18, colTot = usable * 0.18
-    const hH = 8
-    doc.setFillColor(0, 100, 180); doc.rect(ml, y, usable, hH, 'F')
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9)
-    doc.text('DESCRIPCION', ml + 3, y + 5.5)
-    doc.text('CANT', ml + colProd + colCant / 2, y + 5.5, { align: 'center' })
-    doc.text('V/ UNITARI', ml + colProd + colCant + colUnit / 2, y + 5.5, { align: 'center' })
-    doc.text('VALOR TOTAL', ml + colProd + colCant + colUnit + colTot / 2, y + 5.5, { align: 'center' })
+    const colProd = usable*0.52, colCant = usable*0.12, colUnit = usable*0.18, colTot = usable*0.18, hH = 8
+    doc.setFillColor(0,100,180); doc.rect(ml, y, usable, hH, 'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(9)
+    doc.text('DESCRIPCION', ml+3, y+5.5)
+    doc.text('CANT', ml+colProd+colCant/2, y+5.5, { align:'center' })
+    doc.text('V/ UNITARIO', ml+colProd+colCant+colUnit/2, y+5.5, { align:'center' })
+    doc.text('VALOR TOTAL', ml+colProd+colCant+colUnit+colTot/2, y+5.5, { align:'center' })
     y += hH
 
-    doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(9)
     const items = c.cotizacion_items || []
     items.forEach(item => {
+      if (y > ph - 50) { doc.addPage(); y = 15 }
       const lineas = doc.splitTextToSize(item.producto_nombre || '', colProd - 4)
       const rH = Math.max(7, lineas.length * 5)
-      doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.2); doc.line(ml, y, ml + usable, y)
-      doc.text(lineas, ml + 3, y + 4.5)
-      doc.text(String(item.cantidad), ml + colProd + colCant / 2, y + rH / 2 + 1.5, { align: 'center' })
-      doc.text('$' + Number(item.valor_unitario).toLocaleString(), ml + colProd + colCant + colUnit / 2, y + rH / 2 + 1.5, { align: 'center' })
-      doc.text('$' + Number(item.subtotal).toLocaleString(), ml + colProd + colCant + colUnit + colTot / 2, y + rH / 2 + 1.5, { align: 'center' })
+      doc.setDrawColor(180,180,180); doc.setLineWidth(0.2); doc.line(ml, y, ml+usable, y)
+      doc.text(lineas, ml+3, y+4.5)
+      doc.text(String(item.cantidad), ml+colProd+colCant/2, y+rH/2+1.5, { align:'center' })
+      doc.text('$'+Number(item.valor_unitario).toLocaleString('es-CO'), ml+colProd+colCant+colUnit/2, y+rH/2+1.5, { align:'center' })
+      doc.text('$'+Number(item.subtotal).toLocaleString('es-CO'), ml+colProd+colCant+colUnit+colTot/2, y+rH/2+1.5, { align:'center' })
       y += rH
     })
-    doc.line(ml, y, ml + usable, y); y += 5
-    doc.setFont('helvetica', 'bold'); doc.text('Total', ml + colProd + colCant + colUnit + colTot / 2 - 10, y + 5)
-    doc.text('$' + Number(c.total).toLocaleString(), ml + usable, y + 5, { align: 'right' }); y += 14
+    doc.line(ml, y, ml+usable, y); y += 5
+    doc.setFont('helvetica','bold'); doc.setTextColor(0,100,180)
+    doc.text('Total', ml+colProd+colCant+colUnit-5, y+5)
+    doc.text('$'+Number(c.total).toLocaleString('es-CO'), ml+usable, y+5, { align:'right' }); y += 14
 
     if (c.notas) {
-      doc.setTextColor(50, 50, 50); doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
-      const notaLineas = doc.splitTextToSize(c.notas, usable)
-      doc.text(notaLineas, ml, y)
+      if (y > ph - 40) { doc.addPage(); y = 15 }
+      doc.setTextColor(50,50,50); doc.setFont('helvetica','normal'); doc.setFontSize(9)
+      doc.text(doc.splitTextToSize(c.notas, usable), ml, y); y += 10
     }
 
-    // Footer degradado
-    doc.setFillColor(0, 120, 200); doc.rect(0, ph - 20, pw * 0.5, 20, 'F')
-    doc.setFillColor(0, 180, 180); doc.rect(pw * 0.5, ph - 20, pw * 0.5, 20, 'F')
-    doc.setTextColor(255, 255, 255); doc.setFontSize(9)
-    if (c.proponente_nombre) doc.text('METODO DE PAGO', ml, ph - 10)
-
+    const totalPages = doc.internal.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      doc.setFillColor(0,120,200); doc.rect(0, ph-20, pw*0.5, 20, 'F')
+      doc.setFillColor(0,180,180); doc.rect(pw*0.5, ph-20, pw*0.5, 20, 'F')
+      doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','normal')
+      if (c.proponente_nombre) doc.text(c.proponente_nombre, ml, ph-10)
+    }
     return doc
   }
 
-  function generarPdfCot(c) {
-    if (c.plantilla === 'sabana') return generarPdfCotSabana(c)
-    if (c.plantilla === 'fenny') return generarPdfCotFenny(c)
-    return generarPdfCotOficial(c)
-  }
 
   function generarXlsxCot(c) {
     const XLSX = window.XLSX
@@ -746,6 +766,12 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="form-row">
+              <div className="field" style={{gridColumn:'1/-1'}}><label>Título del documento (editable)</label><input value={form.titulo || 'Cotización de Insumos'} onChange={e => setF('titulo', e.target.value)} placeholder="Cotización de Insumos" /></div>
+            </div>
+            <div className="form-row">
+              <div className="field" style={{gridColumn:'1/-1'}}><label>Texto adicional (editable)</label><input value={form.texto_adicional || ''} onChange={e => setF('texto_adicional', e.target.value)} placeholder="Texto adicional debajo del título" /></div>
+            </div>
+            <div className="form-row">
               <div className="field"><label>Cliente</label>
                 <select value={form.cliente_nombre || ''} onChange={e => {
                   const c = clientes.find(x => x.nombre === e.target.value)
@@ -771,6 +797,7 @@ export default function Dashboard() {
               </div>
               <div className="field"><label>Email proponente</label><input value={form.proponente_email || ''} onChange={e => setF('proponente_email', e.target.value)} /></div>
               <div className="field"><label>Teléfono proponente</label><input value={form.proponente_telefono || ''} onChange={e => setF('proponente_telefono', e.target.value)} /></div>
+              <div className="field"><label>Cédula proponente</label><input value={form.proponente_cedula || ''} onChange={e => setF('proponente_cedula', e.target.value)} /></div>
             </div>
 
             <div style={{ marginBottom: 14 }}>
