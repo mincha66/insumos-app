@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [facConcepto, setFacConcepto] = useState('')
   const [facFormato, setFacFormato] = useState(1)
   const [facRemitente, setFacRemitente] = useState(null)
+  const [remSearch, setRemSearch] = useState('')
   const [cotItems, setCotItems] = useState([])
   const [form, setForm] = useState({})
   const [loading, setLoading] = useState(false)
@@ -54,13 +55,21 @@ export default function Dashboard() {
 
   function logout() { localStorage.removeItem('token'); router.push('/login') }
   function openModal(name, obj = null) {
-    setModal(name); setEditObj(obj); setForm(obj || {})
+    setModal(name); setEditObj(obj)
     setRemItems({}); setFacItems([]); setFacRetencion(3)
     setFacConcepto(''); setFacFormato(1); setFacRemitente(null)
+    setRemSearch('')
+    if (name === 'producto' && !obj) {
+      const refs = productos.map(p => parseInt(p.ref) || 0)
+      const nextRef = (refs.length > 0 ? Math.max(...refs) + 1 : 1).toString().padStart(3, '0')
+      setForm({ ref: nextRef })
+    } else {
+      setForm(obj || {})
+    }
     if (name !== 'cotizacion') setCotItems([])
     setPdfPreview(null)
   }
-  function closeModal() { setModal(null); setEditObj(null); setForm({}); setPdfPreview(null); setCotItems([]) }
+  function closeModal() { setModal(null); setEditObj(null); setForm({}); setPdfPreview(null); setCotItems([]); setRemSearch('') }
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   async function saveProducto() { setLoading(true); if (editObj) await api('/api/productos/' + editObj.id, 'PUT', form); else await api('/api/productos', 'POST', form); await loadAll(); closeModal(); setLoading(false) }
@@ -203,21 +212,41 @@ export default function Dashboard() {
   }
   function removeFacItem(id) { setFacItems(prev => prev.filter(i => i.id !== id)) }
   function selectFacRemitente(nombre) { setFacRemitente(remitentes.find(r => r.nombre === nombre) || null) }
+  async function openFacEdit(factura) {
+    const items = (factura.factura_items || []).map(i => ({
+      id: i.id || Math.random(), nombre: i.producto_nombre,
+      cantidad: i.cantidad, valorUnitario: i.precio_unitario, subtotal: i.subtotal
+    }))
+    setFacItems(items)
+    setFacRetencion(factura.retencion_porcentaje || 3)
+    setFacConcepto(factura.concepto || '')
+    setFacFormato(factura.formato || 1)
+    setFacRemitente(remitentes.find(r => r.nombre === factura.remitente_nombre) || null)
+    setForm({
+      numero: factura.numero, fecha: factura.fecha,
+      cliente_nombre: factura.cliente_nombre, cliente_nit: factura.cliente_nit,
+      cliente_ciudad: factura.cliente_ciudad, cliente_telefono: factura.cliente_telefono,
+      cliente_email: factura.cliente_email, cliente_direccion: factura.cliente_direccion,
+    })
+    setEditObj(factura); setModal('factura')
+  }
   async function saveFactura() {
     setLoading(true)
     const { subtotal, retencionValor, valorAPagar } = calcFacTotales()
-    const numero = 'FAC-' + String((facturas.length||0)+1).padStart(3,'0')
-    await api('/api/facturas', 'POST', {
-      numero, fecha: form.fecha,
+    const payload = {
+      numero: form.numero, fecha: form.fecha,
       cliente_nombre: form.cliente_nombre, cliente_nit: form.cliente_nit,
+      cliente_ciudad: form.cliente_ciudad||'', cliente_telefono: form.cliente_telefono||'',
+      cliente_email: form.cliente_email||'', cliente_direccion: form.cliente_direccion||'',
       remitente_nombre: facRemitente?.nombre||'', remitente_cedula: facRemitente?.cedula||'',
       remitente_telefono: facRemitente?.telefono||'', remitente_ciudad: facRemitente?.ciudad||'',
       remitente_email: facRemitente?.email||'', remitente_direccion: facRemitente?.direccion||'',
       retencion_porcentaje: facRetencion, retencion_valor: retencionValor,
-      valor_a_pagar: valorAPagar, concepto: facConcepto, formato: facFormato,
-      total: subtotal,
+      valor_a_pagar: valorAPagar, concepto: facConcepto, formato: facFormato, total: subtotal,
       items: facItems.map(i => ({ producto_nombre: i.nombre, precio_unitario: i.valorUnitario, cantidad: i.cantidad, subtotal: i.subtotal }))
-    })
+    }
+    if (editObj) await api('/api/facturas/' + editObj.id, 'PUT', payload)
+    else await api('/api/facturas', 'POST', payload)
     await loadAll(); closeModal(); setLoading(false)
   }
   async function delFactura(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/facturas/'+id, 'DELETE'); await loadAll() }
@@ -249,18 +278,20 @@ export default function Dashboard() {
   function facPDF1(doc,d,items,W,m,cw) {
     const f=n=>'$'+Number(n||0).toLocaleString('es-CO'); let y=18
     doc.setDrawColor(0,0,0); doc.setLineWidth(0.3)
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(0,0,0)
-    doc.text(d.entidad.toUpperCase(),W/2,y,{align:'center'}); y+=6
-    doc.setFont('helvetica','normal'); doc.setFontSize(10)
-    doc.text('NIT: '+d.nit,W/2,y,{align:'center'}); y+=8
-    doc.setLineWidth(1); doc.line(m,y,W-m,y); doc.setLineWidth(0.3); y+=7
-    doc.setFontSize(9)
-    doc.text('F E C H A',W-m-62,y); doc.text('CONSECUTIVO No '+d.numero,W-m-62,y+5); doc.text(d.fecha,W-m-62,y+10)
-    doc.setFont('helvetica','bold'); doc.text('DEBE A:',m,y)
-    doc.setFont('helvetica','normal'); doc.text(d.rem_nombre,m+23,y); y+=5
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(0,0,0)
+    doc.text(d.entidad.toUpperCase(),W-m,y,{align:'right'}); y+=6
+    doc.setFont('helvetica','normal'); doc.setFontSize(9)
+    doc.text('NIT: '+d.nit,W-m,y,{align:'right'}); y+=8
+    doc.setLineWidth(1); doc.line(m,y,W-m,y); doc.setLineWidth(0.3); y+=6
+    doc.setFontSize(8); doc.setFont('helvetica','bold')
+    doc.text('FECHA:',m,y); doc.setFont('helvetica','normal'); doc.text(d.fecha,m+16,y)
+    doc.setFont('helvetica','bold'); doc.text('CONSECUTIVO:',W-m-48,y); doc.setFont('helvetica','normal'); doc.text(d.numero,W-m,y,{align:'right'}); y+=8
+    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.text('DEBE A:',m,y)
+    doc.setFont('helvetica','normal'); doc.text(d.rem_nombre,m+23,y); y+=6
     doc.text('C.C No '+d.rem_cedula+'  RÉGIMEN SIMPLIFICADO',m,y); y+=5
-    doc.text('DIRECCIÓN: '+d.rem_dir,m,y); doc.text('CIUDAD: '+d.rem_ciudad,m+100,y); y+=5
-    doc.text('TELÉFONO: '+d.rem_tel,m,y); doc.text('EMAIL: '+d.rem_email,m+100,y); y+=7
+    doc.text('DIRECCIÓN: '+d.rem_dir,m,y); y+=5
+    doc.text('CIUDAD: '+d.rem_ciudad,m,y); doc.text('TEL: '+d.rem_tel,m+65,y); y+=5
+    doc.text('EMAIL: '+d.rem_email,m,y); y+=7
     doc.setFont('helvetica','bold'); doc.text('POR CONCEPTO DE: ',m,y)
     doc.setFont('helvetica','normal'); doc.text(d.concepto,m+49,y); y+=8
     doc.setFillColor(200,200,200); doc.rect(m,y,cw,7,'F')
@@ -556,21 +587,22 @@ export default function Dashboard() {
     const ml = 15, usable = pw - 30
 
     doc.setFillColor(30, 58, 95)
-    doc.rect(0, 0, pw, 35, 'F')
+    doc.rect(0, 0, pw, 50, 'F')
     doc.setFillColor(30, 58, 95)
     doc.rect(0, ph - 30, pw, 30, 'F')
 
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
-    doc.text(c.fecha || '', pw - 15, 15, { align: 'right' })
-
-    let y = 45
-    doc.setTextColor(30, 58, 95); doc.setFont('helvetica', 'bold'); doc.setFontSize(16)
-    doc.text(c.titulo || 'Cotización de Insumos', ml, y); y += 7
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(18)
+    doc.text(c.titulo || 'Cotización de Insumos', ml, 26)
     if (c.texto_adicional) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(80,80,80)
-      doc.text(c.texto_adicional, ml, y); y += 7
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+      doc.text(c.texto_adicional, ml, 37)
     }
-    y += 3
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold')
+    doc.text(c.fecha || '', pw - 15, 13, { align: 'right' })
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+    doc.text(c.numero || '', pw - 15, 21, { align: 'right' })
+
+    let y = 60
     doc.setTextColor(30, 58, 95); doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
     doc.text(c.cliente_nombre || '', ml, y); y += 6
     if (c.cliente_ciudad) { doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(80,80,80); doc.text(c.cliente_ciudad, ml, y); y += 10 }
@@ -938,6 +970,7 @@ export default function Dashboard() {
                         <td style={{textAlign:'right'}}>{fmtCOP(f.total)}</td>
                         <td style={{textAlign:'right',fontWeight:700,color:'#059669'}}>{fmtCOP(f.valor_a_pagar)}</td>
                         <td style={{whiteSpace:'nowrap',display:'flex',gap:4}}>
+                          <button className="btn btn-sm" title="Editar" onClick={() => openFacEdit(f)}>✏️</button>
                           <button className="btn btn-sm" title="Ver PDF" onClick={() => generarFacturaPDF(f)}>👁️</button>
                           <button className="btn btn-sm" title="Descargar Excel" onClick={() => exportarFacExcel(f)}>📊</button>
                           <button className="btn btn-sm" title="Enviar email" onClick={() => enviarFacturaEmail(f)}>{sendingEmail ? '...' : '📧'}</button>
@@ -1054,13 +1087,13 @@ export default function Dashboard() {
                 {modal === 'cliente' && (editObj ? 'Editar Cliente' : 'Nuevo Cliente')}
                 {modal === 'remitente' && (editObj ? 'Editar Remitente' : 'Nuevo Remitente')}
                 {modal === 'remision' && (editObj ? 'Editar Remisión' : 'Nueva Remisión')}
-                {modal === 'factura' && 'Nueva Factura'}
+                {modal === 'factura' && (editObj ? 'Editar Factura' : 'Nueva Factura')}
                 {modal === 'movimiento' && 'Nuevo Movimiento — Caja ' + currentCaja}
               </div>
               <button className="modal-close" onClick={closeModal}>✕</button>
             </div>
 
-            {modal === 'producto' && (<div><div className="form-row"><div className="field"><label>Referencia</label><input value={form.ref || ''} onChange={e => setF('ref', e.target.value)} placeholder="REF-001" /></div><div className="field"><label>Unidad</label><input value={form.unidad || ''} onChange={e => setF('unidad', e.target.value)} placeholder="Und, Kg..." /></div></div><div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Nombre</label><input value={form.nombre || ''} onChange={e => setF('nombre', e.target.value)} /></div></div><div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveProducto}>{loading ? 'Guardando...' : 'Guardar'}</button></div></div>)}
+            {modal === 'producto' && (<div><div className="form-row"><div className="field"><label>Ref. (auto)</label><input value={form.ref || ''} readOnly style={{background:'#f3f4f6',cursor:'default'}} /></div><div className="field"><label>Unidad</label><input value={form.unidad || ''} onChange={e => setF('unidad', e.target.value)} placeholder="Und, Kg..." /></div></div><div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Nombre</label><input value={form.nombre || ''} onChange={e => setF('nombre', e.target.value)} /></div></div><div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveProducto}>{loading ? 'Guardando...' : 'Guardar'}</button></div></div>)}
 
             {modal === 'cliente' && (<div><div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Nombre</label><input value={form.nombre || ''} onChange={e => setF('nombre', e.target.value)} /></div></div><div className="form-row"><div className="field"><label>NIT</label><input value={form.nit || ''} onChange={e => setF('nit', e.target.value)} /></div><div className="field"><label>Teléfono</label><input value={form.telefono || ''} onChange={e => setF('telefono', e.target.value)} /></div></div><div className="form-row"><div className="field"><label>Ciudad</label><input value={form.ciudad || ''} onChange={e => setF('ciudad', e.target.value)} /></div><div className="field"><label>Email</label><input value={form.email || ''} onChange={e => setF('email', e.target.value)} /></div></div><div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Dirección</label><input value={form.direccion || ''} onChange={e => setF('direccion', e.target.value)} /></div></div><div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveCliente}>{loading ? 'Guardando...' : 'Guardar'}</button></div></div>)}
 
@@ -1072,11 +1105,21 @@ export default function Dashboard() {
                 <div className="field"><label>Cliente</label><select value={form.cliente_nombre || ''} onChange={e => setF('cliente_nombre', e.target.value)}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}</select></div>
                 <div className="field"><label>Remitente</label><select value={form.remitente_nombre || ''} onChange={e => setF('remitente_nombre', e.target.value)}><option value="">Seleccionar...</option>{remitentes.map(r => <option key={r.id} value={r.nombre}>{r.nombre}</option>)}</select></div>
               </div>
-              <div className="field" style={{ marginBottom: 14 }}>
+              <div className="field" style={{ marginBottom: 14, position:'relative' }}>
                 <label>Buscar y agregar producto</label>
-                <select size="4" onChange={e => { if (e.target.value) { toggleProdRem(e.target.value); e.target.value = '' } }} style={{ width: '100%', background: '#fff', border: '1px solid #dde1ea', borderRadius: 6, color: '#111928', fontFamily: 'inherit', fontSize: 13 }}>
-                  {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.ref ? '(' + p.ref + ')' : ''}</option>)}
-                </select>
+                <input type="text" value={remSearch} onChange={e=>setRemSearch(e.target.value)} placeholder="Escribe para buscar..." style={{ width:'100%', background:'#fff', border:'1px solid #dde1ea', borderRadius:6, padding:'9px 12px', color:'#111928', fontFamily:'inherit', fontSize:13 }}/>
+                {remSearch && (
+                  <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1px solid #dde1ea',borderRadius:'0 0 6px 6px',maxHeight:200,overflowY:'auto',zIndex:100,boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}>
+                    {productos.filter(p=>(p.nombre||'').toLowerCase().includes(remSearch.toLowerCase())).slice(0,12).map(p=>(
+                      <div key={p.id} onClick={()=>{toggleProdRem(p.id);setRemSearch('')}} style={{padding:'8px 12px',cursor:'pointer',borderBottom:'1px solid #f0f0f0',fontSize:13}}>
+                        {p.nombre} {p.ref ? <span style={{color:'#6b7280',fontSize:11}}>({p.ref})</span> : ''}
+                      </div>
+                    ))}
+                    {productos.filter(p=>(p.nombre||'').toLowerCase().includes(remSearch.toLowerCase())).length===0 && (
+                      <div style={{padding:'10px 12px',color:'#9ca3af',fontSize:13}}>Sin resultados</div>
+                    )}
+                  </div>
+                )}
               </div>
               {Object.values(remItems).length > 0 && (
                 <table style={{ marginBottom: 14 }}>
@@ -1104,6 +1147,7 @@ export default function Dashboard() {
               return (
                 <div>
                   <div className="form-row">
+                    <div className="field"><label>Consecutivo</label><input value={form.numero||''} onChange={e=>setF('numero',e.target.value)} placeholder="FAC-001" style={inS}/></div>
                     <div className="field"><label>Fecha</label><input type="date" value={form.fecha||''} onChange={e=>setF('fecha',e.target.value)} /></div>
                     <div className="field"><label>Formato PDF</label>
                       <select value={facFormato} onChange={e=>setFacFormato(Number(e.target.value))} style={inS}>
@@ -1117,10 +1161,21 @@ export default function Dashboard() {
                   </div>
                   <div style={secS}>
                     <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#1a56db'}}>👤 Cliente</div>
-                    <div className="form-row">
-                      <div className="field"><label>Nombre Cliente</label><input value={form.cliente_nombre||''} onChange={e=>setF('cliente_nombre',e.target.value)} placeholder="Nombre de la entidad" style={inS}/></div>
-                      <div className="field"><label>NIT / CC</label><input value={form.cliente_nit||''} onChange={e=>setF('cliente_nit',e.target.value)} placeholder="900.000.000-1" style={inS}/></div>
+                    <div className="field" style={{marginBottom:8}}><label>Seleccionar Cliente</label>
+                      <select onChange={e=>{const cl=clientes.find(x=>x.nombre===e.target.value);if(cl){setF('cliente_nombre',cl.nombre);setF('cliente_nit',cl.nit||'');setF('cliente_ciudad',cl.ciudad||'');setF('cliente_telefono',cl.telefono||'');setF('cliente_email',cl.email||'');setF('cliente_direccion',cl.direccion||'')}}} style={inS}>
+                        <option value="">Seleccionar...</option>
+                        {clientes.map(cl=><option key={cl.id} value={cl.nombre}>{cl.nombre}</option>)}
+                      </select>
                     </div>
+                    {form.cliente_nombre && (
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4px 16px',fontSize:12,color:'#374151',background:'#fff',borderRadius:6,padding:10,border:'1px solid #e5e7eb'}}>
+                        <div><span style={{color:'#6b7280'}}>Nombre:</span> {form.cliente_nombre}</div>
+                        <div><span style={{color:'#6b7280'}}>NIT:</span> {form.cliente_nit}</div>
+                        <div><span style={{color:'#6b7280'}}>Ciudad:</span> {form.cliente_ciudad}</div>
+                        <div><span style={{color:'#6b7280'}}>Tel:</span> {form.cliente_telefono}</div>
+                        <div style={{gridColumn:'1/-1'}}><span style={{color:'#6b7280'}}>Dirección:</span> {form.cliente_direccion}</div>
+                      </div>
+                    )}
                   </div>
                   <div style={secS}>
                     <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#1a56db'}}>📋 Remitente (proveedor)</div>
