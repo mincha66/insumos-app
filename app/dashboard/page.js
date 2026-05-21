@@ -305,6 +305,7 @@ export default function Dashboard() {
     doc.text('VALOR TOTAL',W-m-1,y+4.5,{align:'right'}); y+=7
     doc.setFont('helvetica','normal')
     items.forEach((it,i)=>{
+      if(y+7>252){doc.addPage();y=20;doc.setTextColor(0,0,0);doc.setFontSize(8);doc.setFont('helvetica','normal')}
       if(i%2===0){doc.setFillColor(248,248,248);doc.rect(m,y,cw,6.5,'F')}
       doc.text(String(i+1),m+4,y+4.2,{align:'center'})
       doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4.2)
@@ -312,6 +313,7 @@ export default function Dashboard() {
       doc.text(f(it.precio_unitario),m+130,y+4.2)
       doc.text(f(it.subtotal),W-m-1,y+4.2,{align:'right'}); y+=6.5
     }); y+=5
+    if(y+90>265){doc.addPage();y=20}
     doc.setFontSize(8); doc.setFont('helvetica','bold')
     doc.text('SON: '+numeroALetras(d.a_pagar),m,y); y+=2
     doc.line(W-m-73,y,W-m,y); y+=5
@@ -351,6 +353,7 @@ export default function Dashboard() {
     doc.text('VALOR TOTAL',W-m-1,y+4.5,{align:'right'}); y+=7
     doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
     items.forEach((it,i)=>{
+      if(y+7>252){doc.addPage();y=20;doc.setTextColor(0,0,0);doc.setFontSize(8);doc.setFont('helvetica','normal')}
       if(i%2===0){doc.setFillColor(...AZL);doc.rect(m,y,cw,6.5,'F')}
       doc.text(String(i+1),m+4,y+4.2,{align:'center'})
       doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4.2)
@@ -392,6 +395,7 @@ export default function Dashboard() {
     doc.text('VALOR TOTAL',W-m-1,y+4.5,{align:'right'}); y+=7
     doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
     items.forEach((it,i)=>{
+      if(y+7>252){doc.addPage();y=20;doc.setTextColor(0,0,0);doc.setFontSize(8);doc.setFont('helvetica','normal')}
       if(i%2===0){doc.setFillColor(...GL);doc.rect(m,y,cw,6.5,'F')}
       doc.text(String(i+1),m+4,y+4.2,{align:'center'})
       doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4.2)
@@ -399,6 +403,7 @@ export default function Dashboard() {
       doc.text(f(it.precio_unitario),m+130,y+4.2)
       doc.text(f(it.subtotal),W-m-1,y+4.2,{align:'right'}); y+=6.5
     }); y+=5
+    if(y+90>265){doc.addPage();y=20}
     doc.setFont('helvetica','bold'); doc.text('SON: '+numeroALetras(d.a_pagar),m,y); y+=5
     doc.line(W-m-74,y,W-m,y); y+=5
     doc.text('TOTAL',W-m-72,y); doc.setFont('helvetica','normal'); doc.text(f(d.total),W-m,y,{align:'right'}); y+=4
@@ -436,6 +441,7 @@ export default function Dashboard() {
     doc.setLineWidth(0.3); doc.line(m,y,W-m,y); y+=4
     doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
     items.forEach((it,i)=>{
+      if(y+7>252){doc.addPage();y=20;doc.setTextColor(0,0,0);doc.setFontSize(8);doc.setFont('helvetica','normal')}
       doc.text(String(i+1),m+4,y+4,{align:'center'})
       doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4)
       doc.text(String(it.cantidad||0),m+112,y+4,{align:'center'})
@@ -443,6 +449,7 @@ export default function Dashboard() {
       doc.text(f(it.subtotal),W-m-1,y+4,{align:'right'})
       doc.setLineWidth(0.2); doc.setDrawColor(210,214,219); doc.line(m,y+6.5,W-m,y+6.5); y+=6.5
     }); y+=5
+    if(y+90>265){doc.addPage();y=20}
     doc.setTextColor(...GR); doc.setFont('helvetica','italic')
     doc.text('SON: '+numeroALetras(d.a_pagar),m,y); y+=5
     doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setLineWidth(0.3); doc.setDrawColor(...GR)
@@ -483,6 +490,7 @@ export default function Dashboard() {
     doc.text('VALOR TOTAL',W-m-1,y+4.5,{align:'right'}); y+=7
     doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
     items.forEach((it,i)=>{
+      if(y+7>252){doc.addPage();y=20;doc.setTextColor(0,0,0);doc.setFontSize(8);doc.setFont('helvetica','normal')}
       if(i%2===0){doc.setFillColor(...VEL);doc.rect(m,y,cw,6.5,'F')}
       doc.text(String(i+1),m+4,y+4.2,{align:'center'})
       doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4.2)
@@ -490,6 +498,7 @@ export default function Dashboard() {
       doc.text(f(it.precio_unitario),m+130,y+4.2)
       doc.text(f(it.subtotal),W-m-1,y+4.2,{align:'right'}); y+=6.5
     }); y+=5
+    if(y+90>265){doc.addPage();y=20}
     doc.setFont('helvetica','bold'); doc.setTextColor(...VE)
     doc.text('SON: '+numeroALetras(d.a_pagar),m,y); doc.setTextColor(0,0,0); y+=5
     doc.line(W-m-74,y,W-m,y); y+=5
