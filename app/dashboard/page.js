@@ -65,6 +65,8 @@ export default function Dashboard() {
       const refs = productos.map(p => parseInt(p.ref) || 0)
       const nextRef = (refs.length > 0 ? Math.max(...refs) + 1 : 1).toString().padStart(3, '0')
       setForm({ ref: nextRef })
+    } else if (name === 'movimiento' && !obj) {
+      setForm({ movimiento: 'Entrada', tipo: 'Ingreso' })
     } else {
       setForm(obj || {})
     }
@@ -567,8 +569,11 @@ export default function Dashboard() {
   }
   async function saveMovimiento() {
     setLoading(true)
-    if (editObj) await api('/api/caja/' + editObj.id, 'PUT', { ...form, caja: currentCaja })
-    else await api('/api/caja', 'POST', { ...form, caja: currentCaja })
+    const payload = { ...form, valor: Number(form.valor)||0, caja: currentCaja }
+    const res = editObj
+      ? await api('/api/caja/' + editObj.id, 'PUT', payload)
+      : await api('/api/caja', 'POST', payload)
+    if (res?.error) { alert('Error al guardar: ' + res.error); setLoading(false); return }
     await loadCaja(currentCaja); closeModal(); setLoading(false)
   }
   async function delMovimiento(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/caja/' + id, 'DELETE'); await loadCaja(currentCaja) }
