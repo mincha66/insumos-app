@@ -906,8 +906,8 @@ export default function Dashboard() {
         </nav>
         <div style={{ padding: '12px 8px', borderTop: '1px solid #1a3050' }}>
           <div onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 6, cursor: 'pointer' }}>
-            <div style={{ width: 30, height: 30, background: '#1a56db', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#fff' }}>A</div>
-            <div><div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>Admin</div><div style={{ fontSize: 11, color: '#93c5fd' }}>Cerrar sesión</div></div>
+            <div style={{ width: 30, height: 30, background: '#1a56db', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#fff' }}>I</div>
+            <div><div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>Insumos</div><div style={{ fontSize: 11, color: '#93c5fd' }}>Cerrar sesión</div></div>
           </div>
         </div>
       </aside>

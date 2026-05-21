@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Automatización de Insumos',
+  title: 'Insumos',
   description: 'Sistema de gestión de insumos',
 }
 
