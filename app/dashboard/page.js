@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [pdfPreview, setPdfPreview] = useState(null)
   const [sendingEmail, setSendingEmail] = useState(false)
   const fileRef = useRef()
+  const cajaFileRef = useRef()
   const plantillaRef = useRef()
   const cotItemsRef = useRef([])
 
@@ -535,6 +536,20 @@ export default function Dashboard() {
     } catch(e) { alert('❌ Error: '+e.message) }
     setSendingEmail(false)
   }
+  async function cargaMasivaCaja(e) {
+    const file = e.target.files[0]; if (!file) return
+    const text = await file.text()
+    const lines = text.split('\n').filter(l => l.trim())
+    const items = lines.slice(1).map(l => {
+      const [fecha, tipo, concepto, valor, detalle] = l.split(',').map(x => x.trim())
+      return { fecha, tipo: tipo||'Ingreso', concepto, valor: Number(valor)||0, detalle: detalle||null, caja: currentCaja }
+    }).filter(i => i.fecha && i.concepto)
+    if (!items.length) { alert('No se encontraron movimientos'); return }
+    setLoading(true)
+    for (const item of items) { await api('/api/caja', 'POST', item) }
+    await loadCaja(currentCaja); setLoading(false); e.target.value = ''
+    alert(items.length + ' movimientos cargados')
+  }
   async function saveMovimiento() { setLoading(true); await api('/api/caja', 'POST', { ...form, caja: currentCaja }); await loadCaja(currentCaja); closeModal(); setLoading(false) }
   async function delMovimiento(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/caja/' + id, 'DELETE'); await loadCaja(currentCaja) }
 
@@ -837,7 +852,7 @@ export default function Dashboard() {
     setSendingEmail(false); if (res?.ok) alert('Email enviado'); else alert('Error: ' + (res?.error || 'desconocido'))
   }
 
-  const saldoCaja = cajaMovs.reduce((s, m) => m.tipo === 'ingreso' ? s + Number(m.valor) : s - Number(m.valor), 0)
+  const saldoCaja = cajaMovs.reduce((s, m) => { const esI = m.tipo === 'ingreso' || m.tipo === 'Ingreso'; return esI ? s + Number(m.valor) : s - Number(m.valor) }, 0)
   const navItems = [
     { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
     { id: 'remisiones', icon: '📋', label: 'Remisiones' },
@@ -999,14 +1014,33 @@ export default function Dashboard() {
                   <div style={{ fontSize: 12, color: '#93c5fd', fontWeight: 500 }}>Saldo actual — Caja {currentCaja}</div>
                   <div style={{ fontSize: 32, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>${saldoCaja.toLocaleString('es-CO')}</div>
                 </div>
-                <button className="btn btn-accent" style={{ marginLeft: 'auto' }} onClick={() => openModal('movimiento')}>+ Movimiento</button>
+                <div style={{display:'flex',gap:8,marginLeft:'auto'}}>
+                  <button className="btn" onClick={()=>{const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,fecha,tipo,concepto,valor,detalle\n2026-01-15,Ingreso,Pago cliente,500000,\n2026-01-16,Gasto,Transporte mercancía,45000,Transporte\n2026-01-17,Costo,Material oficina,30000,';a.download='template_caja.csv';a.click()}}>⬇️ Template</button>
+                  <button className="btn" onClick={()=>cajaFileRef.current.click()}>📤 Carga masiva</button>
+                  <input ref={cajaFileRef} type="file" accept=".csv" style={{display:'none'}} onChange={cargaMasivaCaja}/>
+                  <button className="btn btn-accent" onClick={() => openModal('movimiento')}>+ Movimiento</button>
+                </div>
               </div>
               <div className="card">
                 <div className="card-header"><div className="card-title">Movimientos</div></div>
                 {cajaMovs.length === 0 ? <div className="empty-state"><div className="icon">💰</div><p>No hay movimientos</p></div> : (
-                  <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Valor</th><th>Saldo</th><th></th></tr></thead>
-                    <tbody>{(() => { let acum = 0; return cajaMovs.map(m => { acum += m.tipo === 'ingreso' ? Number(m.valor) : -Number(m.valor); return (<tr key={m.id}><td>{m.fecha}</td><td>{m.concepto}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontWeight: 600 }}>{m.tipo === 'ingreso' ? '↑ Ingreso' : '↓ Egreso'}</td><td style={{ color: m.tipo === 'ingreso' ? '#057a55' : '#c81e1e', fontFamily: 'monospace' }}>{m.tipo === 'ingreso' ? '+' : '-'}${Number(m.valor).toLocaleString('es-CO')}</td><td style={{ fontFamily: 'monospace' }}>${acum.toLocaleString('es-CO')}</td><td><button className="btn btn-sm btn-danger" onClick={() => delMovimiento(m.id)}>🗑️</button></td></tr>) }) })()}</tbody>
+                  <div style={{overflowX:'auto'}}>
+                  <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Detalle</th><th>Valor</th><th>Saldo</th><th></th></tr></thead>
+                    <tbody>{(() => { let acum = 0; return cajaMovs.map(m => {
+                      const esI = m.tipo === 'ingreso' || m.tipo === 'Ingreso'
+                      acum += esI ? Number(m.valor) : -Number(m.valor)
+                      return (<tr key={m.id}>
+                        <td>{m.fecha}</td>
+                        <td>{m.concepto}</td>
+                        <td style={{ color: esI ? '#057a55' : '#c81e1e', fontWeight: 600 }}>{esI ? '↑ ' : '↓ '}{m.tipo}</td>
+                        <td style={{color:'#6b7280',fontSize:12}}>{m.detalle || '—'}</td>
+                        <td style={{ color: esI ? '#057a55' : '#c81e1e', fontFamily: 'monospace' }}>{esI ? '+' : '-'}${Number(m.valor).toLocaleString('es-CO')}</td>
+                        <td style={{ fontFamily: 'monospace' }}>${acum.toLocaleString('es-CO')}</td>
+                        <td><button className="btn btn-sm btn-danger" onClick={() => delMovimiento(m.id)}>🗑️</button></td>
+                      </tr>)
+                    }) })()}</tbody>
                   </table>
+                  </div>
                 )}
               </div>
             </div>
@@ -1260,7 +1294,37 @@ export default function Dashboard() {
               )
             })()}
 
-            {modal === 'movimiento' && (<div><div className="form-row"><div className="field"><label>Fecha</label><input type="date" value={form.fecha || ''} onChange={e => setF('fecha', e.target.value)} /></div><div className="field"><label>Tipo</label><select value={form.tipo || 'ingreso'} onChange={e => setF('tipo', e.target.value)}><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option></select></div></div><div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Concepto</label><input value={form.concepto || ''} onChange={e => setF('concepto', e.target.value)} /></div></div><div className="form-row"><div className="field"><label>Valor</label><input type="number" value={form.valor || ''} onChange={e => setF('valor', e.target.value)} /></div></div><div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveMovimiento}>{loading ? 'Guardando...' : 'Registrar'}</button></div></div>)}
+            {modal === 'movimiento' && (
+              <div>
+                <div className="form-row">
+                  <div className="field"><label>Fecha</label><input type="date" value={form.fecha || ''} onChange={e => setF('fecha', e.target.value)} /></div>
+                  <div className="field"><label>Tipo</label>
+                    <select value={form.tipo || 'Ingreso'} onChange={e => { setF('tipo', e.target.value); if (e.target.value !== 'Gasto') setF('detalle', '') }}>
+                      <option value="Ingreso">Ingreso</option>
+                      <option value="Costo">Costo</option>
+                      <option value="Gasto">Gasto</option>
+                    </select>
+                  </div>
+                  {form.tipo === 'Gasto' && (
+                    <div className="field"><label>Detalle</label>
+                      <select value={form.detalle || ''} onChange={e => setF('detalle', e.target.value)}>
+                        <option value="">Seleccionar...</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Generales">Generales</option>
+                        <option value="Comisiones">Comisiones</option>
+                        <option value="Contribuciones">Contribuciones</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Concepto</label><input value={form.concepto || ''} onChange={e => setF('concepto', e.target.value)} /></div></div>
+                <div className="form-row"><div className="field"><label>Valor</label><input type="number" value={form.valor || ''} onChange={e => setF('valor', e.target.value)} /></div></div>
+                <div className="modal-footer">
+                  <button className="btn" onClick={closeModal}>Cancelar</button>
+                  <button className="btn btn-accent" onClick={saveMovimiento}>{loading ? 'Guardando...' : 'Registrar'}</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
