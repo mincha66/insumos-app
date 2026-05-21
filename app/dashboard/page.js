@@ -604,6 +604,7 @@ export default function Dashboard() {
       ? await api('/api/caja/' + editObj.id, 'PUT', payload)
       : await api('/api/caja', 'POST', payload)
     if (res?.error) { alert('Error al guardar: ' + res.error); setLoading(false); return }
+    if (!editObj && res?.id) api('/api/backup', 'POST', { ...payload, id: res.id }).catch(()=>{})
     await loadCaja(currentCaja); closeModal(); setLoading(false)
   }
   async function delMovimiento(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/caja/' + id, 'DELETE'); await loadCaja(currentCaja) }
