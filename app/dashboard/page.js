@@ -23,6 +23,8 @@ export default function Dashboard() {
   const [facConcepto, setFacConcepto] = useState('')
   const [facFormato, setFacFormato] = useState(1)
   const [facRemitente, setFacRemitente] = useState(null)
+  const [facSearch, setFacSearch] = useState('')
+  const [prodSearch, setProdSearch] = useState('')
   const [remSearch, setRemSearch] = useState('')
   const [cotItems, setCotItems] = useState([])
   const [form, setForm] = useState({})
@@ -55,12 +57,30 @@ export default function Dashboard() {
   const loadCaja = useCallback(async (caja) => { const data = await api('/api/caja?caja=' + caja); if (data) setCajaMovs(data) }, [api])
   useEffect(() => { if (token) { loadAll(); loadCaja(currentCaja) } }, [token, loadAll, loadCaja, currentCaja])
 
+  useEffect(() => {
+    if (!token) return
+    let ch
+    import('@supabase/supabase-js').then(({ createClient: cc }) => {
+      const sb = cc(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      ch = sb.channel('rt-insumos')
+        .on('postgres_changes',{event:'*',schema:'public',table:'facturas'},()=>loadAll())
+        .on('postgres_changes',{event:'*',schema:'public',table:'cotizaciones'},()=>loadAll())
+        .on('postgres_changes',{event:'*',schema:'public',table:'remisiones'},()=>loadAll())
+        .on('postgres_changes',{event:'*',schema:'public',table:'productos'},()=>loadAll())
+        .on('postgres_changes',{event:'*',schema:'public',table:'clientes'},()=>loadAll())
+        .on('postgres_changes',{event:'*',schema:'public',table:'remitentes'},()=>loadAll())
+        .on('postgres_changes',{event:'*',schema:'public',table:'caja_movimientos'},()=>loadCaja(currentCaja))
+        .subscribe()
+    })
+    return () => { if (ch) ch.unsubscribe() }
+  }, [token, loadAll, loadCaja, currentCaja])
+
   function logout() { localStorage.removeItem('token'); router.push('/login') }
   function openModal(name, obj = null) {
     setModal(name); setEditObj(obj)
     setRemItems({}); setFacItems([]); setFacRetencion(3)
     setFacConcepto(''); setFacFormato(1); setFacRemitente(null)
-    setRemSearch('')
+    setRemSearch(''); setFacSearch(''); setProdSearch('')
     if (name === 'producto' && !obj) {
       const refs = productos.map(p => parseInt(p.ref) || 0)
       const nextRef = (refs.length > 0 ? Math.max(...refs) + 1 : 1).toString().padStart(3, '0')
@@ -1114,9 +1134,12 @@ export default function Dashboard() {
                   <button className="btn btn-accent" onClick={() => openModal('producto')}>+ Nuevo</button>
                 </div>
               </div>
+              <div style={{marginBottom:12}}>
+                <input type="text" value={prodSearch} onChange={e=>setProdSearch(e.target.value)} placeholder="Buscar por nombre o referencia..." style={{width:'100%',background:'#fff',border:'1px solid #dde1ea',borderRadius:6,padding:'9px 12px',fontSize:13,color:'#111928'}}/>
+              </div>
               {productos.length === 0 ? <div className="empty-state"><div className="icon">📦</div><p>No hay productos</p></div> : (
                 <table><thead><tr><th>Ref.</th><th>Nombre</th><th>Unidad</th><th>Acciones</th></tr></thead>
-                  <tbody>{productos.map(p => (
+                  <tbody>{productos.filter(p=>!prodSearch||(p.nombre||'').toLowerCase().includes(prodSearch.toLowerCase())||(p.ref||'').toLowerCase().includes(prodSearch.toLowerCase())).map(p => (
                     <tr key={p.id}>
                       <td><span className="tag">{p.ref}</span></td><td>{p.nombre}</td><td>{p.unidad || '—'}</td>
                       <td><button className="btn btn-sm" style={{ marginRight: 4 }} onClick={() => openModal('producto', p)}>✏️</button><button className="btn btn-sm btn-danger" onClick={() => delProducto(p.id)}>🗑️</button></td>
@@ -1289,11 +1312,20 @@ export default function Dashboard() {
                   <div className="field" style={{marginBottom:12}}><label>Por concepto de</label>
                     <input value={facConcepto} onChange={e=>setFacConcepto(e.target.value)} placeholder="Ej: Insumos de aseo, papelería..." style={inS}/>
                   </div>
-                  <div className="field" style={{marginBottom:8}}><label>Agregar producto</label>
-                    <select onChange={e=>{if(e.target.value){addProductoFac(productos.find(x=>x.id==e.target.value));e.target.value=''}}} style={inS}>
-                      <option value="">Seleccionar producto...</option>
-                      {productos.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
+                  <div className="field" style={{marginBottom:8,position:'relative'}}><label>Agregar producto</label>
+                    <input type="text" value={facSearch} onChange={e=>setFacSearch(e.target.value)} placeholder="Buscar producto..." style={inS}/>
+                    {facSearch && (
+                      <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1px solid #dde1ea',borderRadius:'0 0 6px 6px',maxHeight:200,overflowY:'auto',zIndex:100,boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}>
+                        {productos.filter(p=>(p.nombre||'').toLowerCase().includes(facSearch.toLowerCase())).slice(0,12).map(p=>(
+                          <div key={p.id} onClick={()=>{addProductoFac(p);setFacSearch('')}} style={{padding:'8px 12px',cursor:'pointer',borderBottom:'1px solid #f0f0f0',fontSize:13}}>
+                            {p.nombre} {p.ref?<span style={{color:'#6b7280',fontSize:11}}>({p.ref})</span>:''}
+                          </div>
+                        ))}
+                        {productos.filter(p=>(p.nombre||'').toLowerCase().includes(facSearch.toLowerCase())).length===0 && (
+                          <div style={{padding:'10px 12px',color:'#9ca3af',fontSize:13}}>Sin resultados</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {facItems.length > 0 && (
                     <div style={{overflowX:'auto',marginBottom:8}}>
