@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [cotizaciones, setCotizaciones] = useState([])
   const [cajaMovs, setCajaMovs] = useState([])
   const [currentCaja, setCurrentCaja] = useState('Alejandro')
+  const [cajaSortDesc, setCajaSortDesc] = useState(true)
   const [modal, setModal] = useState(null)
   const [editObj, setEditObj] = useState(null)
   const [remItems, setRemItems] = useState({})
@@ -550,7 +551,26 @@ export default function Dashboard() {
     await loadCaja(currentCaja); setLoading(false); e.target.value = ''
     alert(items.length + ' movimientos cargados')
   }
-  async function saveMovimiento() { setLoading(true); await api('/api/caja', 'POST', { ...form, caja: currentCaja }); await loadCaja(currentCaja); closeModal(); setLoading(false) }
+  function openMovEdit(m) {
+    setEditObj(m)
+    setForm({
+      fecha: m.fecha,
+      movimiento: m.movimiento || ((m.tipo==='ingreso'||m.tipo==='Ingreso') ? 'Entrada' : 'Salida'),
+      tipo: m.tipo || 'Ingreso',
+      detalle: m.detalle || '',
+      cliente_nombre: m.cliente_nombre || '',
+      contrato: m.contrato || '',
+      concepto: m.concepto || '',
+      valor: m.valor
+    })
+    setModal('movimiento')
+  }
+  async function saveMovimiento() {
+    setLoading(true)
+    if (editObj) await api('/api/caja/' + editObj.id, 'PUT', { ...form, caja: currentCaja })
+    else await api('/api/caja', 'POST', { ...form, caja: currentCaja })
+    await loadCaja(currentCaja); closeModal(); setLoading(false)
+  }
   async function delMovimiento(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/caja/' + id, 'DELETE'); await loadCaja(currentCaja) }
 
   // COTIZACIONES
@@ -1022,26 +1042,45 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="card">
-                <div className="card-header"><div className="card-title">Movimientos</div></div>
+                <div className="card-header">
+                  <div className="card-title">Movimientos</div>
+                  <button className="btn btn-sm" onClick={()=>setCajaSortDesc(p=>!p)} style={{marginLeft:'auto'}}>
+                    {cajaSortDesc ? '↓ Más reciente' : '↑ Más antigua'}
+                  </button>
+                </div>
                 {cajaMovs.length === 0 ? <div className="empty-state"><div className="icon">💰</div><p>No hay movimientos</p></div> : (
                   <div style={{overflowX:'auto'}}>
-                  <table><thead><tr><th>Fecha</th><th>Movimiento</th><th>Tipo</th><th>Detalle</th><th>Cliente</th><th>Contrato</th><th>Concepto</th><th>Monto</th><th>Saldo</th><th></th></tr></thead>
-                    <tbody>{(() => { let acum = 0; return cajaMovs.map(m => {
-                      const esE = m.movimiento === 'Entrada' || (!m.movimiento && (m.tipo === 'ingreso' || m.tipo === 'Ingreso'))
-                      acum += esE ? Number(m.valor) : -Number(m.valor)
-                      return (<tr key={m.id}>
-                        <td>{m.fecha}</td>
-                        <td style={{color: esE ? '#057a55' : '#c81e1e', fontWeight:600}}>{esE ? '↑ Entrada' : '↓ Salida'}</td>
-                        <td style={{fontSize:12}}>{m.tipo}</td>
-                        <td style={{color:'#6b7280',fontSize:12}}>{m.detalle||'—'}</td>
-                        <td style={{fontSize:12}}>{m.cliente_nombre||'—'}</td>
-                        <td style={{fontSize:12}}>{m.contrato||'—'}</td>
-                        <td style={{fontSize:12}}>{m.concepto}</td>
-                        <td style={{color: esE ? '#057a55' : '#c81e1e', fontFamily:'monospace'}}>{esE ? '+' : '-'}${Number(m.valor).toLocaleString('es-CO')}</td>
-                        <td style={{fontFamily:'monospace'}}>${acum.toLocaleString('es-CO')}</td>
-                        <td><button className="btn btn-sm btn-danger" onClick={() => delMovimiento(m.id)}>🗑️</button></td>
-                      </tr>)
-                    }) })()}</tbody>
+                  <table><thead><tr>
+                      <th>#</th><th>Fecha</th><th>Movimiento</th><th>Tipo</th><th>Detalle</th>
+                      <th>Cliente</th><th>Contrato</th><th>Concepto</th><th>Monto</th><th>Saldo</th><th></th>
+                    </tr></thead>
+                    <tbody>{(() => {
+                      let acum = 0
+                      const conSaldo = cajaMovs.map((m, idx) => {
+                        const esE = m.movimiento === 'Entrada' || (!m.movimiento && (m.tipo === 'ingreso' || m.tipo === 'Ingreso'))
+                        acum += esE ? Number(m.valor) : -Number(m.valor)
+                        return { ...m, _esE: esE, _saldo: acum, _num: idx + 1 }
+                      })
+                      const ordenados = cajaSortDesc ? [...conSaldo].reverse() : conSaldo
+                      return ordenados.map(m => (
+                        <tr key={m.id}>
+                          <td style={{color:'#9ca3af',fontSize:11,textAlign:'center'}}>{m._num}</td>
+                          <td>{m.fecha}</td>
+                          <td style={{color: m._esE ? '#057a55' : '#c81e1e', fontWeight:600}}>{m._esE ? '↑ Entrada' : '↓ Salida'}</td>
+                          <td style={{fontSize:12}}>{m.tipo}</td>
+                          <td style={{color:'#6b7280',fontSize:12}}>{m.detalle||'—'}</td>
+                          <td style={{fontSize:12}}>{m.cliente_nombre||'—'}</td>
+                          <td style={{fontSize:12}}>{m.contrato||'—'}</td>
+                          <td style={{fontSize:12}}>{m.concepto}</td>
+                          <td style={{color: m._esE ? '#057a55' : '#c81e1e', fontFamily:'monospace'}}>{m._esE ? '+' : '-'}${Number(m.valor).toLocaleString('es-CO')}</td>
+                          <td style={{fontFamily:'monospace'}}>${m._saldo.toLocaleString('es-CO')}</td>
+                          <td style={{whiteSpace:'nowrap',display:'flex',gap:4}}>
+                            <button className="btn btn-sm" title="Editar" onClick={()=>openMovEdit(m)}>✏️</button>
+                            <button className="btn btn-sm btn-danger" title="Eliminar" onClick={()=>delMovimiento(m.id)}>🗑️</button>
+                          </td>
+                        </tr>
+                      ))
+                    })()}</tbody>
                   </table>
                   </div>
                 )}
@@ -1125,7 +1164,7 @@ export default function Dashboard() {
                 {modal === 'remitente' && (editObj ? 'Editar Remitente' : 'Nuevo Remitente')}
                 {modal === 'remision' && (editObj ? 'Editar Remisión' : 'Nueva Remisión')}
                 {modal === 'factura' && (editObj ? 'Editar Factura' : 'Nueva Factura')}
-                {modal === 'movimiento' && 'Nuevo Movimiento — Caja ' + currentCaja}
+                {modal === 'movimiento' && (editObj ? 'Editar Movimiento' : 'Nuevo Movimiento') + ' — Caja ' + currentCaja}
               </div>
               <button className="modal-close" onClick={closeModal}>✕</button>
             </div>
