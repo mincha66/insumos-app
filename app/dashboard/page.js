@@ -17,7 +17,11 @@ export default function Dashboard() {
   const [modal, setModal] = useState(null)
   const [editObj, setEditObj] = useState(null)
   const [remItems, setRemItems] = useState({})
-  const [facItems, setFacItems] = useState({})
+  const [facItems, setFacItems] = useState([])
+  const [facRetencion, setFacRetencion] = useState(3)
+  const [facConcepto, setFacConcepto] = useState('')
+  const [facFormato, setFacFormato] = useState(1)
+  const [facRemitente, setFacRemitente] = useState(null)
   const [cotItems, setCotItems] = useState([])
   const [form, setForm] = useState({})
   const [loading, setLoading] = useState(false)
@@ -49,7 +53,13 @@ export default function Dashboard() {
   useEffect(() => { if (token) { loadAll(); loadCaja(currentCaja) } }, [token, loadAll, loadCaja, currentCaja])
 
   function logout() { localStorage.removeItem('token'); router.push('/login') }
-  function openModal(name, obj = null) { setModal(name); setEditObj(obj); setForm(obj || {}); setRemItems({}); setFacItems({}); if (name !== 'cotizacion') setCotItems([]); setPdfPreview(null) }
+  function openModal(name, obj = null) {
+    setModal(name); setEditObj(obj); setForm(obj || {})
+    setRemItems({}); setFacItems([]); setFacRetencion(3)
+    setFacConcepto(''); setFacFormato(1); setFacRemitente(null)
+    if (name !== 'cotizacion') setCotItems([])
+    setPdfPreview(null)
+  }
   function closeModal() { setModal(null); setEditObj(null); setForm({}); setPdfPreview(null); setCotItems([]) }
   function setF(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -148,16 +158,352 @@ export default function Dashboard() {
     setSendingEmail(false); if (res?.ok) alert('Email enviado'); else alert('Error: ' + (res?.error || 'desconocido'))
   }
 
-  function toggleProdFac(p) { setFacItems(prev => { const n = { ...prev }; if (n[p.id]) delete n[p.id]; else n[p.id] = { prod: p, qty: 1 }; return n }) }
+  function numeroALetras(num) {
+    num = Math.floor(Number(num) || 0)
+    if (num === 0) return 'CERO PESOS M.CTE'
+    const U = ['','UN','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISÉIS','DIECISIETE','DIECIOCHO','DIECINUEVE']
+    const D = ['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA']
+    const C = ['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS']
+    function grupo(n) {
+      let s = ''
+      if (n === 100) return 'CIEN'
+      if (n >= 100) { s += C[Math.floor(n/100)] + ' '; n %= 100 }
+      if (n >= 20) { s += D[Math.floor(n/10)]; if (n%10) s += ' Y ' + U[n%10]; s += ' ' }
+      else if (n > 0) s += U[n] + ' '
+      return s.trim()
+    }
+    let r = '', n = num
+    if (n >= 1000000) { const mv = Math.floor(n/1000000); r += (mv===1 ? 'UN MILLÓN' : grupo(mv)+' MILLONES')+' '; n %= 1000000 }
+    if (n >= 1000)    { const tv = Math.floor(n/1000);    r += (tv===1 ? 'MIL' : grupo(tv)+' MIL')+' '; n %= 1000 }
+    if (n > 0) r += grupo(n)
+    return r.trim() + ' PESOS M.CTE'
+  }
+  function fmtCOP(n) { return '$' + Number(n||0).toLocaleString('es-CO') }
+  function calcFacTotales() {
+    const subtotal = facItems.reduce((s,i) => s+(i.subtotal||0), 0)
+    const retencionValor = Math.round(subtotal * ((facRetencion||0)/100))
+    return { subtotal, retencionValor, valorAPagar: subtotal - retencionValor }
+  }
+  function addProductoFac(prod) {
+    if (!prod) return
+    setFacItems(prev => {
+      if (prev.find(i => i.id === prod.id)) return prev
+      const vu = Number(prod.precio||0)
+      return [...prev, { id: prod.id, nombre: prod.nombre, cantidad: 1, valorUnitario: vu, subtotal: vu }]
+    })
+  }
+  function updateFacItem(id, field, raw) {
+    const val = Number(raw)||0
+    setFacItems(prev => prev.map(i => {
+      if (i.id !== id) return i
+      const u = { ...i, [field]: val }
+      u.subtotal = u.cantidad * u.valorUnitario
+      return u
+    }))
+  }
+  function removeFacItem(id) { setFacItems(prev => prev.filter(i => i.id !== id)) }
+  function selectFacRemitente(nombre) { setFacRemitente(remitentes.find(r => r.nombre === nombre) || null) }
   async function saveFactura() {
     setLoading(true)
-    const items = Object.values(facItems).map(i => ({ producto_nombre: i.prod.nombre, precio_unitario: i.prod.precio, cantidad: i.qty, subtotal: i.prod.precio * i.qty }))
-    const total = items.reduce((s, i) => s + i.subtotal, 0)
-    const numero = 'FAC-' + String(facturas.length + 1).padStart(3, '0')
-    await api('/api/facturas', 'POST', { fecha: form.fecha, cliente_nombre: form.cliente_nombre, numero, total, items })
+    const { subtotal, retencionValor, valorAPagar } = calcFacTotales()
+    const numero = 'FAC-' + String((facturas.length||0)+1).padStart(3,'0')
+    await api('/api/facturas', 'POST', {
+      numero, fecha: form.fecha,
+      cliente_nombre: form.cliente_nombre, cliente_nit: form.cliente_nit,
+      remitente_nombre: facRemitente?.nombre||'', remitente_cedula: facRemitente?.cedula||'',
+      remitente_telefono: facRemitente?.telefono||'', remitente_ciudad: facRemitente?.ciudad||'',
+      remitente_email: facRemitente?.email||'', remitente_direccion: facRemitente?.direccion||'',
+      retencion_porcentaje: facRetencion, retencion_valor: retencionValor,
+      valor_a_pagar: valorAPagar, concepto: facConcepto, formato: facFormato,
+      total: subtotal,
+      items: facItems.map(i => ({ producto_nombre: i.nombre, precio_unitario: i.valorUnitario, cantidad: i.cantidad, subtotal: i.subtotal }))
+    })
     await loadAll(); closeModal(); setLoading(false)
   }
-  async function delFactura(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/facturas/' + id, 'DELETE'); await loadAll() }
+  async function delFactura(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/facturas/'+id, 'DELETE'); await loadAll() }
+  async function generarFacturaPDF(factura, abrir = true) {
+    const jsPDF = window.jspdf?.jsPDF
+    if (!jsPDF) { alert('Cargando PDF, intenta de nuevo'); return null }
+    const doc = new jsPDF({ unit:'mm', format:'letter' })
+    const W=216, m=14, cw=W-m*2
+    const items = factura.factura_items || []
+    const d = {
+      entidad: factura.cliente_nombre||'', nit: factura.cliente_nit||'',
+      fecha: factura.fecha||'', numero: factura.numero||'',
+      rem_nombre: factura.remitente_nombre||'', rem_cedula: factura.remitente_cedula||'',
+      rem_tel: factura.remitente_telefono||'', rem_ciudad: factura.remitente_ciudad||'',
+      rem_email: factura.remitente_email||'', rem_dir: factura.remitente_direccion||'',
+      concepto: factura.concepto||'',
+      total: Number(factura.total||0), ret_pct: Number(factura.retencion_porcentaje||0),
+      ret_val: Number(factura.retencion_valor||0), a_pagar: Number(factura.valor_a_pagar||0),
+    }
+    const fmt = Number(factura.formato||1)
+    if      (fmt===1) facPDF1(doc,d,items,W,m,cw)
+    else if (fmt===2) facPDF2(doc,d,items,W,m,cw)
+    else if (fmt===3) facPDF3(doc,d,items,W,m,cw)
+    else if (fmt===4) facPDF4(doc,d,items,W,m,cw)
+    else              facPDF5(doc,d,items,W,m,cw)
+    if (abrir) window.open(URL.createObjectURL(doc.output('blob')))
+    return doc
+  }
+  function facPDF1(doc,d,items,W,m,cw) {
+    const f=n=>'$'+Number(n||0).toLocaleString('es-CO'); let y=18
+    doc.setDrawColor(0,0,0); doc.setLineWidth(0.3)
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(0,0,0)
+    doc.text(d.entidad.toUpperCase(),W/2,y,{align:'center'}); y+=6
+    doc.setFont('helvetica','normal'); doc.setFontSize(10)
+    doc.text('NIT: '+d.nit,W/2,y,{align:'center'}); y+=8
+    doc.setLineWidth(1); doc.line(m,y,W-m,y); doc.setLineWidth(0.3); y+=7
+    doc.setFontSize(9)
+    doc.text('F E C H A',W-m-62,y); doc.text('CONSECUTIVO No '+d.numero,W-m-62,y+5); doc.text(d.fecha,W-m-62,y+10)
+    doc.setFont('helvetica','bold'); doc.text('DEBE A:',m,y)
+    doc.setFont('helvetica','normal'); doc.text(d.rem_nombre,m+23,y); y+=5
+    doc.text('C.C No '+d.rem_cedula+'  RÉGIMEN SIMPLIFICADO',m,y); y+=5
+    doc.text('DIRECCIÓN: '+d.rem_dir,m,y); doc.text('CIUDAD: '+d.rem_ciudad,m+100,y); y+=5
+    doc.text('TELÉFONO: '+d.rem_tel,m,y); doc.text('EMAIL: '+d.rem_email,m+100,y); y+=7
+    doc.setFont('helvetica','bold'); doc.text('POR CONCEPTO DE: ',m,y)
+    doc.setFont('helvetica','normal'); doc.text(d.concepto,m+49,y); y+=8
+    doc.setFillColor(200,200,200); doc.rect(m,y,cw,7,'F')
+    doc.setFont('helvetica','bold'); doc.setFontSize(8)
+    doc.text('#',m+4,y+4.5,{align:'center'}); doc.text('DESCRIPCIÓN',m+10,y+4.5)
+    doc.text('CANT',m+112,y+4.5,{align:'center'}); doc.text('V/ UNITARIO',m+130,y+4.5)
+    doc.text('VALOR TOTAL',W-m-1,y+4.5,{align:'right'}); y+=7
+    doc.setFont('helvetica','normal')
+    items.forEach((it,i)=>{
+      if(i%2===0){doc.setFillColor(248,248,248);doc.rect(m,y,cw,6.5,'F')}
+      doc.text(String(i+1),m+4,y+4.2,{align:'center'})
+      doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4.2)
+      doc.text(String(it.cantidad||0),m+112,y+4.2,{align:'center'})
+      doc.text(f(it.precio_unitario),m+130,y+4.2)
+      doc.text(f(it.subtotal),W-m-1,y+4.2,{align:'right'}); y+=6.5
+    }); y+=5
+    doc.setFontSize(8); doc.setFont('helvetica','bold')
+    doc.text('SON: '+numeroALetras(d.a_pagar),m,y); y+=2
+    doc.line(W-m-73,y,W-m,y); y+=5
+    doc.text('TOTAL',W-m-71,y); doc.setFont('helvetica','normal'); doc.text(f(d.total),W-m,y,{align:'right'}); y+=4
+    doc.line(W-m-73,y,W-m,y); y+=5
+    doc.setFont('helvetica','bold'); doc.text('RETENCIÓN ('+d.ret_pct+'%)',W-m-71,y); y+=5
+    doc.setFont('helvetica','normal'); doc.text(f(d.ret_val),W-m,y,{align:'right'}); y+=4
+    doc.line(W-m-73,y,W-m,y); y+=2
+    doc.setFillColor(200,200,200); doc.rect(W-m-73,y,75,8,'F')
+    doc.setFont('helvetica','bold'); doc.text('A PAGAR',W-m-71,y+5.5); doc.text(f(d.a_pagar),W-m-2,y+5.5,{align:'right'}); y+=20
+    const sw=cw/4
+    ;['FIRMA','REVISADO','APROBADO','AUTORIZADO'].forEach((s,i)=>{
+      doc.setLineWidth(0.3); doc.line(m+i*sw+4,y,m+(i+1)*sw-4,y)
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(s,m+i*sw+sw/2,y+5,{align:'center'})
+    })
+  }
+  function facPDF2(doc,d,items,W,m,cw) {
+    const f=n=>'$'+Number(n||0).toLocaleString('es-CO')
+    const AZ=[26,86,179], AZL=[235,241,252]; let y=0
+    doc.setFillColor(...AZ); doc.rect(0,0,W,32,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16)
+    doc.text(d.entidad.toUpperCase(),m,14); doc.setFontSize(9); doc.setFont('helvetica','normal')
+    doc.text('NIT: '+d.nit,m,20); doc.text('TEL: '+d.rem_tel,m,26)
+    doc.setFontSize(22); doc.setFont('helvetica','bold')
+    doc.text('FACTURA',W-m,20,{align:'right'}); doc.setFontSize(10)
+    doc.text(d.numero,W-m,27,{align:'right'}); y=38
+    doc.setTextColor(0,0,0); doc.setFillColor(...AZL); doc.rect(m,y,cw,28,'F')
+    doc.setFont('helvetica','bold'); doc.text('DEBE A:',m+3,y+6)
+    doc.setFont('helvetica','normal'); doc.text(d.rem_nombre,m+3,y+12)
+    doc.text('C.C: '+d.rem_cedula,m+3,y+18); doc.text('DIR: '+d.rem_dir,m+3,y+24)
+    doc.text('CIUDAD: '+d.rem_ciudad,m+100,y+12); doc.text('EMAIL: '+d.rem_email,m+100,y+18); doc.text('FECHA: '+d.fecha,m+100,y+24); y+=32
+    doc.setFont('helvetica','bold'); doc.text('POR CONCEPTO DE: ',m,y); doc.setFont('helvetica','normal'); doc.text(d.concepto,m+49,y); y+=8
+    doc.setFillColor(...AZ); doc.rect(m,y,cw,7,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8)
+    doc.text('#',m+4,y+4.5,{align:'center'}); doc.text('DESCRIPCIÓN',m+10,y+4.5)
+    doc.text('CANT',m+112,y+4.5,{align:'center'}); doc.text('V/ UNITARIO',m+130,y+4.5)
+    doc.text('VALOR TOTAL',W-m-1,y+4.5,{align:'right'}); y+=7
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
+    items.forEach((it,i)=>{
+      if(i%2===0){doc.setFillColor(...AZL);doc.rect(m,y,cw,6.5,'F')}
+      doc.text(String(i+1),m+4,y+4.2,{align:'center'})
+      doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4.2)
+      doc.text(String(it.cantidad||0),m+112,y+4.2,{align:'center'})
+      doc.text(f(it.precio_unitario),m+130,y+4.2)
+      doc.text(f(it.subtotal),W-m-1,y+4.2,{align:'right'}); y+=6.5
+    }); y+=5
+    doc.setFont('helvetica','bold'); doc.text('SON: '+numeroALetras(d.a_pagar),m,y); y+=5
+    doc.setFillColor(...AZL); doc.rect(W-m-74,y-1,76,28,'F')
+    doc.text('TOTAL',W-m-72,y+5); doc.setFont('helvetica','normal'); doc.text(f(d.total),W-m-1,y+5,{align:'right'})
+    doc.setFont('helvetica','bold'); doc.text('RETENCIÓN ('+d.ret_pct+'%)',W-m-72,y+11); doc.setFont('helvetica','normal'); doc.text(f(d.ret_val),W-m-1,y+11,{align:'right'})
+    doc.setFillColor(...AZ); doc.rect(W-m-74,y+16,76,10,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
+    doc.text('A PAGAR',W-m-72,y+22); doc.text(f(d.a_pagar),W-m-1,y+22,{align:'right'})
+    doc.setTextColor(0,0,0); y+=38
+    doc.setFillColor(...AZ); doc.rect(m,y,cw,8,'F')
+    doc.setTextColor(255,255,255); doc.setFontSize(8)
+    ;['FIRMA','REVISADO','APROBADO','AUTORIZADO'].forEach((s,i)=>doc.text(s,m+i*(cw/4)+cw/8,y+5,{align:'center'}))
+  }
+  function facPDF3(doc,d,items,W,m,cw) {
+    const f=n=>'$'+Number(n||0).toLocaleString('es-CO')
+    const GD=[51,65,85], GL=[241,245,249], GA=[226,232,240]; let y=0
+    doc.setFillColor(...GD); doc.rect(0,0,W,28,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13)
+    doc.text(d.entidad.toUpperCase(),m,12); doc.setFontSize(9); doc.setFont('helvetica','normal')
+    doc.text('NIT: '+d.nit+'   TEL: '+d.rem_tel,m,19)
+    doc.setFont('helvetica','bold'); doc.setFontSize(11)
+    doc.text('FACTURA '+d.numero,W-m,12,{align:'right'}); doc.setFontSize(9); doc.setFont('helvetica','normal')
+    doc.text('Fecha: '+d.fecha,W-m,19,{align:'right'}); y=34
+    doc.setTextColor(0,0,0); doc.setFillColor(...GL); doc.rect(m,y,cw,26,'F')
+    doc.setFont('helvetica','bold'); doc.text('▶  DEBE A',m+3,y+6); doc.setFont('helvetica','normal')
+    doc.text(d.rem_nombre,m+3,y+12); doc.text('CC '+d.rem_cedula+' | '+d.rem_ciudad,m+3,y+18); doc.text('Dir: '+d.rem_dir,m+3,y+24)
+    doc.text('EMAIL: '+d.rem_email,m+100,y+12); doc.text('TEL: '+d.rem_tel,m+100,y+18); y+=30
+    doc.setFont('helvetica','bold'); doc.text('POR CONCEPTO DE: ',m,y); doc.setFont('helvetica','normal'); doc.text(d.concepto,m+49,y); y+=8
+    doc.setFillColor(...GD); doc.rect(m,y,cw,7,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8)
+    doc.text('#',m+4,y+4.5,{align:'center'}); doc.text('DESCRIPCIÓN',m+10,y+4.5)
+    doc.text('CANT',m+112,y+4.5,{align:'center'}); doc.text('V/ UNITARIO',m+130,y+4.5)
+    doc.text('VALOR TOTAL',W-m-1,y+4.5,{align:'right'}); y+=7
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
+    items.forEach((it,i)=>{
+      if(i%2===0){doc.setFillColor(...GL);doc.rect(m,y,cw,6.5,'F')}
+      doc.text(String(i+1),m+4,y+4.2,{align:'center'})
+      doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4.2)
+      doc.text(String(it.cantidad||0),m+112,y+4.2,{align:'center'})
+      doc.text(f(it.precio_unitario),m+130,y+4.2)
+      doc.text(f(it.subtotal),W-m-1,y+4.2,{align:'right'}); y+=6.5
+    }); y+=5
+    doc.setFont('helvetica','bold'); doc.text('SON: '+numeroALetras(d.a_pagar),m,y); y+=5
+    doc.line(W-m-74,y,W-m,y); y+=5
+    doc.text('TOTAL',W-m-72,y); doc.setFont('helvetica','normal'); doc.text(f(d.total),W-m,y,{align:'right'}); y+=4
+    doc.line(W-m-74,y,W-m,y); y+=5
+    doc.setFont('helvetica','bold'); doc.text('RETENCIÓN ('+d.ret_pct+'%)',W-m-72,y); doc.setFont('helvetica','normal'); doc.text(f(d.ret_val),W-m,y,{align:'right'}); y+=4
+    doc.line(W-m-74,y,W-m,y); y+=2
+    doc.setFillColor(...GD); doc.rect(W-m-74,y,76,9,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
+    doc.text('A PAGAR',W-m-72,y+6); doc.text(f(d.a_pagar),W-m-1,y+6,{align:'right'}); y+=18
+    doc.setTextColor(0,0,0); doc.setLineWidth(0.3)
+    ;['FIRMA','REVISADO','APROBADO','AUTORIZADO'].forEach((s,i)=>{
+      doc.line(m+i*(cw/4)+4,y,m+(i+1)*(cw/4)-4,y)
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(s,m+i*(cw/4)+(cw/8),y+5,{align:'center'})
+    })
+  }
+  function facPDF4(doc,d,items,W,m,cw) {
+    const f=n=>'$'+Number(n||0).toLocaleString('es-CO')
+    const GR=[100,116,139]; let y=18
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(0,0,0)
+    doc.text(d.entidad.toUpperCase(),m,y); y+=7
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...GR)
+    doc.text('NIT: '+d.nit+'   ·   '+d.rem_tel+'   ·   '+d.rem_email,m,y); y+=3
+    doc.setLineWidth(0.8); doc.setDrawColor(0,0,0); doc.line(m,y,W-m,y); y+=6
+    doc.setTextColor(0,0,0); doc.setFontSize(8)
+    doc.setFont('helvetica','bold'); doc.text('FACTURA N°',m,y); doc.setFont('helvetica','normal'); doc.text(d.numero,m+28,y)
+    doc.setFont('helvetica','bold'); doc.text('FECHA',W-m-50,y); doc.setFont('helvetica','normal'); doc.text(d.fecha,W-m-30,y); y+=6
+    doc.setFont('helvetica','bold'); doc.text('DEBE A',m,y); doc.setFont('helvetica','normal'); doc.text(d.rem_nombre+' | CC '+d.rem_cedula,m+18,y); y+=5
+    doc.text('DIR: '+d.rem_dir+' | '+d.rem_ciudad,m,y); y+=5
+    doc.setFont('helvetica','bold'); doc.text('CONCEPTO',m,y); doc.setFont('helvetica','normal'); doc.text(d.concepto,m+25,y); y+=7
+    doc.setLineWidth(0.5); doc.setDrawColor(...GR); doc.line(m,y,W-m,y)
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...GR)
+    doc.text('#',m+4,y+5,{align:'center'}); doc.text('DESCRIPCIÓN',m+10,y+5)
+    doc.text('CANT',m+112,y+5,{align:'center'}); doc.text('V/ UNITARIO',m+130,y+5)
+    doc.text('VALOR TOTAL',W-m-1,y+5,{align:'right'}); y+=5
+    doc.setLineWidth(0.3); doc.line(m,y,W-m,y); y+=4
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
+    items.forEach((it,i)=>{
+      doc.text(String(i+1),m+4,y+4,{align:'center'})
+      doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4)
+      doc.text(String(it.cantidad||0),m+112,y+4,{align:'center'})
+      doc.text(f(it.precio_unitario),m+130,y+4)
+      doc.text(f(it.subtotal),W-m-1,y+4,{align:'right'})
+      doc.setLineWidth(0.2); doc.setDrawColor(210,214,219); doc.line(m,y+6.5,W-m,y+6.5); y+=6.5
+    }); y+=5
+    doc.setTextColor(...GR); doc.setFont('helvetica','italic')
+    doc.text('SON: '+numeroALetras(d.a_pagar),m,y); y+=5
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setLineWidth(0.3); doc.setDrawColor(...GR)
+    doc.line(W-m-74,y,W-m,y); y+=5
+    doc.setFont('helvetica','bold'); doc.text('TOTAL',W-m-72,y); doc.setFont('helvetica','normal'); doc.text(f(d.total),W-m,y,{align:'right'}); y+=5
+    doc.setFont('helvetica','bold'); doc.text('RETENCIÓN ('+d.ret_pct+'%)',W-m-72,y); doc.setFont('helvetica','normal'); doc.text(f(d.ret_val),W-m,y,{align:'right'}); y+=4
+    doc.setLineWidth(0.8); doc.setDrawColor(0,0,0); doc.line(W-m-74,y,W-m,y); y+=5
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text('A PAGAR',W-m-72,y); doc.text(f(d.a_pagar),W-m,y,{align:'right'}); y+=18
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setLineWidth(0.3); doc.setDrawColor(...GR)
+    ;['FIRMA','REVISADO','APROBADO','AUTORIZADO'].forEach((s,i)=>{
+      doc.line(m+i*(cw/4)+4,y,m+(i+1)*(cw/4)-4,y)
+      doc.text(s,m+i*(cw/4)+(cw/8),y+5,{align:'center'})
+    })
+  }
+  function facPDF5(doc,d,items,W,m,cw) {
+    const f=n=>'$'+Number(n||0).toLocaleString('es-CO')
+    const VE=[5,150,105], VEL=[236,253,245]; let y=0
+    doc.setFillColor(...VE); doc.rect(0,0,W,30,'F')
+    doc.setFillColor(4,120,87); doc.rect(W-60,0,60,30,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14)
+    doc.text(d.entidad.toUpperCase(),m,13); doc.setFontSize(9); doc.setFont('helvetica','normal')
+    doc.text('NIT: '+d.nit,m,20); doc.text(d.rem_email,m,26)
+    doc.setFontSize(11); doc.setFont('helvetica','bold')
+    doc.text('FACTURA',W-m,12,{align:'right'}); doc.setFontSize(10)
+    doc.text(d.numero,W-m,19,{align:'right'}); doc.setFontSize(8); doc.text(d.fecha,W-m,26,{align:'right'}); y=36
+    doc.setTextColor(0,0,0); doc.setFillColor(...VEL); doc.rect(m,y,cw,26,'F')
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...VE)
+    doc.text('DEBE A',m+3,y+7); doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
+    doc.text(d.rem_nombre,m+3,y+13); doc.text('CC: '+d.rem_cedula,m+3,y+19); doc.text(d.rem_ciudad,m+3,y+25)
+    doc.text('TEL: '+d.rem_tel,m+100,y+13); doc.text('DIR: '+d.rem_dir,m+100,y+19); y+=30
+    doc.setFont('helvetica','bold'); doc.setTextColor(...VE)
+    doc.text('POR CONCEPTO DE: ',m,y); doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
+    doc.text(d.concepto,m+49,y); y+=8
+    doc.setFillColor(...VE); doc.rect(m,y,cw,7,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8)
+    doc.text('#',m+4,y+4.5,{align:'center'}); doc.text('DESCRIPCIÓN',m+10,y+4.5)
+    doc.text('CANT',m+112,y+4.5,{align:'center'}); doc.text('V/ UNITARIO',m+130,y+4.5)
+    doc.text('VALOR TOTAL',W-m-1,y+4.5,{align:'right'}); y+=7
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','normal')
+    items.forEach((it,i)=>{
+      if(i%2===0){doc.setFillColor(...VEL);doc.rect(m,y,cw,6.5,'F')}
+      doc.text(String(i+1),m+4,y+4.2,{align:'center'})
+      doc.text((it.producto_nombre||'').substring(0,44),m+10,y+4.2)
+      doc.text(String(it.cantidad||0),m+112,y+4.2,{align:'center'})
+      doc.text(f(it.precio_unitario),m+130,y+4.2)
+      doc.text(f(it.subtotal),W-m-1,y+4.2,{align:'right'}); y+=6.5
+    }); y+=5
+    doc.setFont('helvetica','bold'); doc.setTextColor(...VE)
+    doc.text('SON: '+numeroALetras(d.a_pagar),m,y); doc.setTextColor(0,0,0); y+=5
+    doc.line(W-m-74,y,W-m,y); y+=5
+    doc.text('TOTAL',W-m-72,y); doc.setFont('helvetica','normal'); doc.text(f(d.total),W-m,y,{align:'right'}); y+=5
+    doc.setFont('helvetica','bold'); doc.text('RETENCIÓN ('+d.ret_pct+'%)',W-m-72,y); doc.setFont('helvetica','normal'); doc.text(f(d.ret_val),W-m,y,{align:'right'}); y+=4
+    doc.setFillColor(...VE); doc.rect(W-m-74,y,76,10,'F')
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
+    doc.text('A PAGAR',W-m-72,y+7); doc.text(f(d.a_pagar),W-m-1,y+7,{align:'right'}); y+=20
+    doc.setTextColor(0,0,0); doc.setLineWidth(0.3); doc.setDrawColor(...VE)
+    ;['FIRMA','REVISADO','APROBADO','AUTORIZADO'].forEach((s,i)=>{
+      doc.line(m+i*(cw/4)+4,y,m+(i+1)*(cw/4)-4,y)
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(s,m+i*(cw/4)+(cw/8),y+5,{align:'center'})
+    })
+  }
+  function exportarFacExcel(factura) {
+    const XLSX = window.XLSX; if (!XLSX) { alert('Cargando Excel, intenta de nuevo'); return }
+    const items = factura.factura_items || []
+    const wsData = [
+      ['FACTURA: '+factura.numero],[],
+      ['Fecha:', factura.fecha],
+      ['Cliente:', factura.cliente_nombre, 'NIT:', factura.cliente_nit],
+      ['Remitente:', factura.remitente_nombre, 'CC:', factura.remitente_cedula],
+      ['Dirección:', factura.remitente_direccion, 'Ciudad:', factura.remitente_ciudad],
+      ['Teléfono:', factura.remitente_telefono, 'Email:', factura.remitente_email],
+      ['Concepto:', factura.concepto],[],
+      ['#','Descripción','Cantidad','Valor Unitario','Subtotal'],
+      ...items.map((it,i)=>[i+1,it.producto_nombre,it.cantidad,it.precio_unitario,it.subtotal]),
+      [],['' ,'','','TOTAL',factura.total],
+      ['','','','RETENCIÓN ('+factura.retencion_porcentaje+'%)',factura.retencion_valor],
+      ['','','','A PAGAR',factura.valor_a_pagar],[],
+      ['SON: '+numeroALetras(factura.valor_a_pagar)]
+    ]
+    const wb = window.XLSX.utils.book_new()
+    const ws = window.XLSX.utils.aoa_to_sheet(wsData)
+    ws['!cols'] = [{wch:5},{wch:40},{wch:12},{wch:18},{wch:18}]
+    window.XLSX.utils.book_append_sheet(wb, ws, 'Factura')
+    window.XLSX.writeFile(wb, 'Factura_'+factura.numero+'.xlsx')
+  }
+  async function enviarFacturaEmail(factura) {
+    setSendingEmail(true)
+    try {
+      const doc = await generarFacturaPDF(factura, false)
+      if (!doc) { setSendingEmail(false); return }
+      const pdfBase64 = doc.output('datauristring').split(',')[1]
+      const res = await api('/api/facturas/email', 'POST', { factura, pdfBase64 })
+      alert(res?.ok ? '✅ Correo enviado' : '❌ Error enviando correo')
+    } catch(e) { alert('❌ Error: '+e.message) }
+    setSendingEmail(false)
+  }
   async function saveMovimiento() { setLoading(true); await api('/api/caja', 'POST', { ...form, caja: currentCaja }); await loadCaja(currentCaja); closeModal(); setLoading(false) }
   async function delMovimiento(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/caja/' + id, 'DELETE'); await loadCaja(currentCaja) }
 
@@ -577,19 +923,30 @@ export default function Dashboard() {
           {page === 'facturas' && (
             <div className="card">
               <div className="card-header">
-                <div><div className="card-title">Facturas</div></div>
+                <div><div className="card-title">🧾 Facturas</div></div>
                 <button className="btn btn-accent" onClick={() => openModal('factura')}>+ Nueva factura</button>
               </div>
               {facturas.length === 0 ? <div className="empty-state"><div className="icon">🧾</div><p>No hay facturas</p></div> : (
-                <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Acciones</th></tr></thead>
-                  <tbody>{facturas.map(f => (
-                    <tr key={f.id}>
-                      <td><span className="tag">{f.numero}</span></td><td>{f.fecha}</td><td>{f.cliente_nombre}</td>
-                      <td style={{ color: '#057a55', fontWeight: 600 }}>${Number(f.total).toLocaleString('es-CO')}</td>
-                      <td><button className="btn btn-sm btn-danger" onClick={() => delFactura(f.id)}>🗑️</button></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
+                <div style={{overflowX:'auto'}}>
+                  <table><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Remitente</th><th style={{textAlign:'right'}}>Total</th><th style={{textAlign:'right'}}>A Pagar</th><th>Acciones</th></tr></thead>
+                    <tbody>{facturas.map(f => (
+                      <tr key={f.id}>
+                        <td><span className="tag">{f.numero}</span></td>
+                        <td>{f.fecha}</td>
+                        <td>{f.cliente_nombre}</td>
+                        <td>{f.remitente_nombre||'—'}</td>
+                        <td style={{textAlign:'right'}}>{fmtCOP(f.total)}</td>
+                        <td style={{textAlign:'right',fontWeight:700,color:'#059669'}}>{fmtCOP(f.valor_a_pagar)}</td>
+                        <td style={{whiteSpace:'nowrap',display:'flex',gap:4}}>
+                          <button className="btn btn-sm" title="Ver PDF" onClick={() => generarFacturaPDF(f)}>👁️</button>
+                          <button className="btn btn-sm" title="Descargar Excel" onClick={() => exportarFacExcel(f)}>📊</button>
+                          <button className="btn btn-sm" title="Enviar email" onClick={() => enviarFacturaEmail(f)}>{sendingEmail ? '...' : '📧'}</button>
+                          <button className="btn btn-sm btn-danger" onClick={() => delFactura(f.id)}>🗑️</button>
+                        </td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
@@ -740,7 +1097,113 @@ export default function Dashboard() {
               </div>
             </div>)}
 
-            {modal === 'factura' && (<div><div className="form-row"><div className="field"><label>Fecha</label><input type="date" value={form.fecha || ''} onChange={e => setF('fecha', e.target.value)} /></div><div className="field"><label>Cliente</label><select value={form.cliente_nombre || ''} onChange={e => setF('cliente_nombre', e.target.value)}><option value="">Seleccionar...</option>{clientes.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}</select></div></div><div className="field" style={{ marginBottom: 14 }}><label>Agregar producto</label><select onChange={e => { if (e.target.value) { toggleProdFac(productos.find(x => x.id == e.target.value)); e.target.value = '' } }} style={{ width: '100%', background: '#fff', border: '1px solid #dde1ea', borderRadius: 6, padding: '9px 12px', color: '#111928', fontFamily: 'inherit', fontSize: 13 }}><option value="">Seleccionar...</option>{productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>{Object.values(facItems).length > 0 && <div><table><thead><tr><th>Producto</th><th>Precio</th><th>Cant.</th><th>Subtotal</th><th></th></tr></thead><tbody>{Object.values(facItems).map(it => (<tr key={it.prod.id}><td>{it.prod.nombre}</td><td>${Number(it.prod.precio || 0).toLocaleString('es-CO')}</td><td><input type="number" min="1" value={it.qty} onChange={e => setFacItems(prev => ({ ...prev, [it.prod.id]: { ...prev[it.prod.id], qty: Number(e.target.value) || 1 } }))} style={{ width: 60, background: '#fff', border: '1px solid #dde1ea', borderRadius: 4, padding: '4px 6px', textAlign: 'center' }} /></td><td>${((it.prod.precio || 0) * it.qty).toLocaleString('es-CO')}</td><td><button onClick={() => setFacItems(prev => { const n = { ...prev }; delete n[it.prod.id]; return n })} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>✕</button></td></tr>))}</tbody></table><div style={{ textAlign: 'right', fontWeight: 700, fontSize: 15, color: '#1a56db', padding: 8 }}>Total: ${Object.values(facItems).reduce((s, i) => s + (i.prod.precio || 0) * i.qty, 0).toLocaleString('es-CO')}</div></div>}<div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveFactura}>{loading ? 'Guardando...' : 'Guardar'}</button></div></div>)}
+            {modal === 'factura' && (() => {
+              const tots = calcFacTotales()
+              const inS = { width:'100%', background:'#fff', border:'1px solid #dde1ea', borderRadius:6, padding:'9px 12px', color:'#111928', fontFamily:'inherit', fontSize:13 }
+              const secS = { background:'#f9fafb', borderRadius:8, padding:'12px 14px', marginBottom:12, border:'1px solid #eef0f4' }
+              return (
+                <div>
+                  <div className="form-row">
+                    <div className="field"><label>Fecha</label><input type="date" value={form.fecha||''} onChange={e=>setF('fecha',e.target.value)} /></div>
+                    <div className="field"><label>Formato PDF</label>
+                      <select value={facFormato} onChange={e=>setFacFormato(Number(e.target.value))} style={inS}>
+                        <option value={1}>Formato 1 — Clásico</option>
+                        <option value={2}>Formato 2 — Azul Marino</option>
+                        <option value={3}>Formato 3 — Corporativo</option>
+                        <option value={4}>Formato 4 — Minimalista</option>
+                        <option value={5}>Formato 5 — Verde</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={secS}>
+                    <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#1a56db'}}>👤 Cliente</div>
+                    <div className="form-row">
+                      <div className="field"><label>Nombre Cliente</label><input value={form.cliente_nombre||''} onChange={e=>setF('cliente_nombre',e.target.value)} placeholder="Nombre de la entidad" style={inS}/></div>
+                      <div className="field"><label>NIT / CC</label><input value={form.cliente_nit||''} onChange={e=>setF('cliente_nit',e.target.value)} placeholder="900.000.000-1" style={inS}/></div>
+                    </div>
+                  </div>
+                  <div style={secS}>
+                    <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#1a56db'}}>📋 Remitente (proveedor)</div>
+                    <div className="field" style={{marginBottom:8}}><label>Seleccionar Remitente</label>
+                      <select onChange={e=>selectFacRemitente(e.target.value)} style={inS}>
+                        <option value="">Seleccionar...</option>
+                        {remitentes.map(r=><option key={r.id} value={r.nombre}>{r.nombre}</option>)}
+                      </select>
+                    </div>
+                    {facRemitente && (
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4px 16px',fontSize:12,color:'#374151',background:'#fff',borderRadius:6,padding:10,border:'1px solid #e5e7eb'}}>
+                        <div><span style={{color:'#6b7280'}}>CC:</span> {facRemitente.cedula}</div>
+                        <div><span style={{color:'#6b7280'}}>Tel:</span> {facRemitente.telefono}</div>
+                        <div><span style={{color:'#6b7280'}}>Ciudad:</span> {facRemitente.ciudad}</div>
+                        <div><span style={{color:'#6b7280'}}>Email:</span> {facRemitente.email}</div>
+                        <div style={{gridColumn:'1/-1'}}><span style={{color:'#6b7280'}}>Dirección:</span> {facRemitente.direccion}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="field" style={{marginBottom:12}}><label>Por concepto de</label>
+                    <input value={facConcepto} onChange={e=>setFacConcepto(e.target.value)} placeholder="Ej: Insumos de aseo, papelería..." style={inS}/>
+                  </div>
+                  <div className="field" style={{marginBottom:8}}><label>Agregar producto</label>
+                    <select onChange={e=>{if(e.target.value){addProductoFac(productos.find(x=>x.id==e.target.value));e.target.value=''}}} style={inS}>
+                      <option value="">Seleccionar producto...</option>
+                      {productos.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
+                  </div>
+                  {facItems.length > 0 && (
+                    <div style={{overflowX:'auto',marginBottom:8}}>
+                      <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                        <thead><tr style={{background:'#f3f4f6'}}>
+                          <th style={{padding:'6px 8px',textAlign:'center',width:32}}>#</th>
+                          <th style={{padding:'6px 8px',textAlign:'left'}}>Producto</th>
+                          <th style={{padding:'6px 8px',textAlign:'center',width:80}}>Cantidad</th>
+                          <th style={{padding:'6px 8px',textAlign:'right',width:120}}>Valor Unitario</th>
+                          <th style={{padding:'6px 8px',textAlign:'right',width:120}}>Valor Total</th>
+                          <th style={{width:28}}></th>
+                        </tr></thead>
+                        <tbody>
+                          {facItems.map((it,idx)=>(
+                            <tr key={it.id} style={{borderBottom:'1px solid #f0f0f0'}}>
+                              <td style={{padding:'5px 8px',textAlign:'center',color:'#6b7280'}}>{idx+1}</td>
+                              <td style={{padding:'5px 8px'}}>{it.nombre}</td>
+                              <td style={{padding:'5px 8px'}}>
+                                <input type="number" min="1" value={it.cantidad} onChange={e=>updateFacItem(it.id,'cantidad',e.target.value)} style={{width:60,background:'#fff',border:'1px solid #dde1ea',borderRadius:4,padding:'4px 6px',textAlign:'center',fontSize:12}}/>
+                              </td>
+                              <td style={{padding:'5px 8px'}}>
+                                <input type="number" min="0" value={it.valorUnitario} onChange={e=>updateFacItem(it.id,'valorUnitario',e.target.value)} style={{width:110,background:'#fff',border:'1px solid #dde1ea',borderRadius:4,padding:'4px 6px',textAlign:'right',fontSize:12}}/>
+                              </td>
+                              <td style={{padding:'5px 8px',textAlign:'right',fontWeight:600}}>{fmtCOP(it.subtotal)}</td>
+                              <td><button onClick={()=>removeFacItem(it.id)} style={{background:'none',border:'none',color:'#9ca3af',cursor:'pointer',fontSize:14}}>✕</button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div style={{marginTop:12,background:'#f9fafb',borderRadius:8,padding:'10px 14px',border:'1px solid #eef0f4'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #e5e7eb'}}>
+                          <span style={{fontWeight:600,fontSize:13}}>TOTAL</span>
+                          <span style={{fontWeight:700,fontSize:14}}>{fmtCOP(tots.subtotal)}</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #e5e7eb'}}>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <span style={{fontWeight:600,fontSize:13}}>RETENCIÓN</span>
+                            <input type="number" min="0" max="100" step="0.5" value={facRetencion} onChange={e=>setFacRetencion(Number(e.target.value)||0)} style={{width:52,background:'#fff',border:'1px solid #dde1ea',borderRadius:4,padding:'3px 6px',textAlign:'center',fontSize:12}}/>
+                            <span style={{fontSize:13,color:'#6b7280'}}>%</span>
+                          </div>
+                          <span style={{fontSize:13,color:'#6b7280'}}>{fmtCOP(tots.retencionValor)}</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',padding:'8px 0 4px'}}>
+                          <span style={{fontWeight:700,fontSize:14}}>VALOR A PAGAR</span>
+                          <span style={{fontWeight:700,fontSize:16,color:'#059669'}}>{fmtCOP(tots.valorAPagar)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="modal-footer">
+                    <button className="btn" onClick={closeModal}>Cancelar</button>
+                    <button className="btn btn-accent" onClick={saveFactura}>{loading ? 'Guardando...' : 'Guardar Factura'}</button>
+                  </div>
+                </div>
+              )
+            })()}
 
             {modal === 'movimiento' && (<div><div className="form-row"><div className="field"><label>Fecha</label><input type="date" value={form.fecha || ''} onChange={e => setF('fecha', e.target.value)} /></div><div className="field"><label>Tipo</label><select value={form.tipo || 'ingreso'} onChange={e => setF('tipo', e.target.value)}><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option></select></div></div><div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Concepto</label><input value={form.concepto || ''} onChange={e => setF('concepto', e.target.value)} /></div></div><div className="form-row"><div className="field"><label>Valor</label><input type="number" value={form.valor || ''} onChange={e => setF('valor', e.target.value)} /></div></div><div className="modal-footer"><button className="btn" onClick={closeModal}>Cancelar</button><button className="btn btn-accent" onClick={saveMovimiento}>{loading ? 'Guardando...' : 'Registrar'}</button></div></div>)}
           </div>
