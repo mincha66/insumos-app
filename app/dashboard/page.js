@@ -361,6 +361,7 @@ export default function Dashboard() {
       doc.text(f(it.precio_unitario),m+130,y+4.2)
       doc.text(f(it.subtotal),W-m-1,y+4.2,{align:'right'}); y+=6.5
     }); y+=5
+    if(y+90>265){doc.addPage();y=20}
     doc.setFont('helvetica','bold'); doc.text('SON: '+numeroALetras(d.a_pagar),m,y); y+=5
     doc.setFillColor(...AZL); doc.rect(W-m-74,y-1,76,28,'F')
     doc.text('TOTAL',W-m-72,y+5); doc.setFont('helvetica','normal'); doc.text(f(d.total),W-m-1,y+5,{align:'right'})
