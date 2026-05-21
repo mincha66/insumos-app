@@ -852,7 +852,7 @@ export default function Dashboard() {
     setSendingEmail(false); if (res?.ok) alert('Email enviado'); else alert('Error: ' + (res?.error || 'desconocido'))
   }
 
-  const saldoCaja = cajaMovs.reduce((s, m) => { const esI = m.tipo === 'ingreso' || m.tipo === 'Ingreso'; return esI ? s + Number(m.valor) : s - Number(m.valor) }, 0)
+  const saldoCaja = cajaMovs.reduce((s, m) => { const esE = m.movimiento === 'Entrada' || (!m.movimiento && (m.tipo === 'ingreso' || m.tipo === 'Ingreso')); return esE ? s + Number(m.valor) : s - Number(m.valor) }, 0)
   const navItems = [
     { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
     { id: 'remisiones', icon: '📋', label: 'Remisiones' },
@@ -1025,17 +1025,20 @@ export default function Dashboard() {
                 <div className="card-header"><div className="card-title">Movimientos</div></div>
                 {cajaMovs.length === 0 ? <div className="empty-state"><div className="icon">💰</div><p>No hay movimientos</p></div> : (
                   <div style={{overflowX:'auto'}}>
-                  <table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Detalle</th><th>Valor</th><th>Saldo</th><th></th></tr></thead>
+                  <table><thead><tr><th>Fecha</th><th>Movimiento</th><th>Tipo</th><th>Detalle</th><th>Cliente</th><th>Contrato</th><th>Concepto</th><th>Monto</th><th>Saldo</th><th></th></tr></thead>
                     <tbody>{(() => { let acum = 0; return cajaMovs.map(m => {
-                      const esI = m.tipo === 'ingreso' || m.tipo === 'Ingreso'
-                      acum += esI ? Number(m.valor) : -Number(m.valor)
+                      const esE = m.movimiento === 'Entrada' || (!m.movimiento && (m.tipo === 'ingreso' || m.tipo === 'Ingreso'))
+                      acum += esE ? Number(m.valor) : -Number(m.valor)
                       return (<tr key={m.id}>
                         <td>{m.fecha}</td>
-                        <td>{m.concepto}</td>
-                        <td style={{ color: esI ? '#057a55' : '#c81e1e', fontWeight: 600 }}>{esI ? '↑ ' : '↓ '}{m.tipo}</td>
-                        <td style={{color:'#6b7280',fontSize:12}}>{m.detalle || '—'}</td>
-                        <td style={{ color: esI ? '#057a55' : '#c81e1e', fontFamily: 'monospace' }}>{esI ? '+' : '-'}${Number(m.valor).toLocaleString('es-CO')}</td>
-                        <td style={{ fontFamily: 'monospace' }}>${acum.toLocaleString('es-CO')}</td>
+                        <td style={{color: esE ? '#057a55' : '#c81e1e', fontWeight:600}}>{esE ? '↑ Entrada' : '↓ Salida'}</td>
+                        <td style={{fontSize:12}}>{m.tipo}</td>
+                        <td style={{color:'#6b7280',fontSize:12}}>{m.detalle||'—'}</td>
+                        <td style={{fontSize:12}}>{m.cliente_nombre||'—'}</td>
+                        <td style={{fontSize:12}}>{m.contrato||'—'}</td>
+                        <td style={{fontSize:12}}>{m.concepto}</td>
+                        <td style={{color: esE ? '#057a55' : '#c81e1e', fontFamily:'monospace'}}>{esE ? '+' : '-'}${Number(m.valor).toLocaleString('es-CO')}</td>
+                        <td style={{fontFamily:'monospace'}}>${acum.toLocaleString('es-CO')}</td>
                         <td><button className="btn btn-sm btn-danger" onClick={() => delMovimiento(m.id)}>🗑️</button></td>
                       </tr>)
                     }) })()}</tbody>
@@ -1297,17 +1300,23 @@ export default function Dashboard() {
             {modal === 'movimiento' && (
               <div>
                 <div className="form-row">
-                  <div className="field"><label>Fecha</label><input type="date" value={form.fecha || ''} onChange={e => setF('fecha', e.target.value)} /></div>
+                  <div className="field"><label>Fecha</label><input type="date" value={form.fecha||''} onChange={e=>setF('fecha',e.target.value)} /></div>
+                  <div className="field"><label>Movimiento</label>
+                    <select value={form.movimiento||'Entrada'} onChange={e=>setF('movimiento',e.target.value)}>
+                      <option value="Entrada">↑ Entrada</option>
+                      <option value="Salida">↓ Salida</option>
+                    </select>
+                  </div>
                   <div className="field"><label>Tipo</label>
-                    <select value={form.tipo || 'Ingreso'} onChange={e => { setF('tipo', e.target.value); if (e.target.value !== 'Gasto') setF('detalle', '') }}>
+                    <select value={form.tipo||'Ingreso'} onChange={e=>{setF('tipo',e.target.value);if(e.target.value!=='Gasto')setF('detalle','')}}>
                       <option value="Ingreso">Ingreso</option>
                       <option value="Costo">Costo</option>
                       <option value="Gasto">Gasto</option>
                     </select>
                   </div>
-                  {form.tipo === 'Gasto' && (
+                  {form.tipo==='Gasto' && (
                     <div className="field"><label>Detalle</label>
-                      <select value={form.detalle || ''} onChange={e => setF('detalle', e.target.value)}>
+                      <select value={form.detalle||''} onChange={e=>setF('detalle',e.target.value)}>
                         <option value="">Seleccionar...</option>
                         <option value="Transporte">Transporte</option>
                         <option value="Generales">Generales</option>
@@ -1317,8 +1326,34 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
-                <div className="form-row"><div className="field" style={{ gridColumn: '1/-1' }}><label>Concepto</label><input value={form.concepto || ''} onChange={e => setF('concepto', e.target.value)} /></div></div>
-                <div className="form-row"><div className="field"><label>Valor</label><input type="number" value={form.valor || ''} onChange={e => setF('valor', e.target.value)} /></div></div>
+                <div className="form-row">
+                  <div className="field"><label>Cliente</label>
+                    <select value={form.cliente_nombre||''} onChange={e=>setF('cliente_nombre',e.target.value)}>
+                      <option value="">Seleccionar...</option>
+                      <option value="Varios">Varios</option>
+                      {clientes.map(cl=><option key={cl.id} value={cl.nombre}>{cl.nombre}</option>)}
+                    </select>
+                  </div>
+                  <div className="field"><label>Contrato</label>
+                    {['','Aseo','Papelería','Tecnología','Enseres'].includes(form.contrato||'') ? (
+                      <select value={form.contrato||''} onChange={e=>setF('contrato',e.target.value)}>
+                        <option value="">Seleccionar...</option>
+                        <option value="Aseo">Aseo</option>
+                        <option value="Papelería">Papelería</option>
+                        <option value="Tecnología">Tecnología</option>
+                        <option value="Enseres">Enseres</option>
+                        <option value="__nuevo__">+ Añadir nuevo...</option>
+                      </select>
+                    ) : (
+                      <div style={{display:'flex',gap:6}}>
+                        <input value={form.contrato==='__nuevo__'?'':form.contrato} onChange={e=>setF('contrato',e.target.value)} placeholder="Nombre del contrato..." style={{flex:1,background:'#fff',border:'1px solid #dde1ea',borderRadius:6,padding:'9px 12px',fontSize:13}}/>
+                        <button onClick={()=>setF('contrato','')} style={{background:'none',border:'1px solid #dde1ea',borderRadius:6,padding:'6px 10px',cursor:'pointer',color:'#6b7280'}}>✕</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="form-row"><div className="field" style={{gridColumn:'1/-1'}}><label>Concepto</label><input value={form.concepto||''} onChange={e=>setF('concepto',e.target.value)} /></div></div>
+                <div className="form-row"><div className="field"><label>Monto</label><input type="number" value={form.valor||''} onChange={e=>setF('valor',e.target.value)} /></div></div>
                 <div className="modal-footer">
                   <button className="btn" onClick={closeModal}>Cancelar</button>
                   <button className="btn btn-accent" onClick={saveMovimiento}>{loading ? 'Guardando...' : 'Registrar'}</button>
