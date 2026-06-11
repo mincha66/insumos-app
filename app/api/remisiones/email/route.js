@@ -1,9 +1,11 @@
+import { verifyToken } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
 
 export async function POST(req) {
+  if (!verifyToken(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   try {
     const { pdfBase64, remisionId, clienteNombre } = await req.json()
     const transporter = nodemailer.createTransport({
@@ -12,7 +14,7 @@ export async function POST(req) {
     })
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: 'minchitas@gmail.com,asesoriaenseguros023@gmail.com,bjosealejandro9@gmail.com',
+      to: process.env.EMAIL_RECIPIENTS,
       subject: `Remisión #${remisionId} — ${clienteNombre}`,
       text: `Se adjunta la remisión #${remisionId} para el cliente ${clienteNombre}.`,
       attachments: [{

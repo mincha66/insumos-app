@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { jsPDF } from 'jspdf'
+import * as XLSX from 'xlsx'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -55,6 +57,12 @@ export default function Dashboard() {
   }, [api])
 
   const loadCaja = useCallback(async (caja) => { const data = await api('/api/caja?caja=' + caja); if (data) setCajaMovs(data) }, [api])
+  const loadProductos = useCallback(async () => { const d = await api('/api/productos'); if (d) setProductos(d) }, [api])
+  const loadClientes = useCallback(async () => { const d = await api('/api/clientes'); if (d) setClientes(d) }, [api])
+  const loadRemitentes = useCallback(async () => { const d = await api('/api/remitentes'); if (d) setRemitentes(d) }, [api])
+  const loadRemisiones = useCallback(async () => { const d = await api('/api/remisiones'); if (d) setRemisiones(d) }, [api])
+  const loadFacturas = useCallback(async () => { const d = await api('/api/facturas'); if (d) setFacturas(d) }, [api])
+  const loadCotizaciones = useCallback(async () => { const d = await api('/api/cotizaciones'); if (d) setCotizaciones(d) }, [api])
   useEffect(() => { if (token) { loadAll(); loadCaja(currentCaja) } }, [token, loadAll, loadCaja, currentCaja])
 
   useEffect(() => {
@@ -63,17 +71,17 @@ export default function Dashboard() {
     import('@supabase/supabase-js').then(({ createClient: cc }) => {
       const sb = cc(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
       ch = sb.channel('rt-insumos')
-        .on('postgres_changes',{event:'*',schema:'public',table:'facturas'},()=>loadAll())
-        .on('postgres_changes',{event:'*',schema:'public',table:'cotizaciones'},()=>loadAll())
-        .on('postgres_changes',{event:'*',schema:'public',table:'remisiones'},()=>loadAll())
-        .on('postgres_changes',{event:'*',schema:'public',table:'productos'},()=>loadAll())
-        .on('postgres_changes',{event:'*',schema:'public',table:'clientes'},()=>loadAll())
-        .on('postgres_changes',{event:'*',schema:'public',table:'remitentes'},()=>loadAll())
+        .on('postgres_changes',{event:'*',schema:'public',table:'facturas'},()=>loadFacturas())
+        .on('postgres_changes',{event:'*',schema:'public',table:'cotizaciones'},()=>loadCotizaciones())
+        .on('postgres_changes',{event:'*',schema:'public',table:'remisiones'},()=>loadRemisiones())
+        .on('postgres_changes',{event:'*',schema:'public',table:'productos'},()=>loadProductos())
+        .on('postgres_changes',{event:'*',schema:'public',table:'clientes'},()=>loadClientes())
+        .on('postgres_changes',{event:'*',schema:'public',table:'remitentes'},()=>loadRemitentes())
         .on('postgres_changes',{event:'*',schema:'public',table:'caja_movimientos'},()=>loadCaja(currentCaja))
         .subscribe()
     })
     return () => { if (ch) ch.unsubscribe() }
-  }, [token, loadAll, loadCaja, currentCaja])
+  }, [token, loadFacturas, loadCotizaciones, loadRemisiones, loadProductos, loadClientes, loadRemitentes, loadCaja, currentCaja])
 
   function logout() { localStorage.removeItem('token'); router.push('/login') }
   function openModal(name, obj = null) {
@@ -535,7 +543,6 @@ export default function Dashboard() {
     })
   }
   function exportarFacExcel(factura) {
-    const XLSX = window.XLSX; if (!XLSX) { alert('Cargando Excel, intenta de nuevo'); return }
     const items = factura.factura_items || []
     const wsData = [
       ['FACTURA: '+factura.numero],[],
@@ -552,11 +559,11 @@ export default function Dashboard() {
       ['','','','A PAGAR',factura.valor_a_pagar],[],
       ['SON: '+numeroALetras(factura.valor_a_pagar)]
     ]
-    const wb = window.XLSX.utils.book_new()
-    const ws = window.XLSX.utils.aoa_to_sheet(wsData)
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.aoa_to_sheet(wsData)
     ws['!cols'] = [{wch:5},{wch:40},{wch:12},{wch:18},{wch:18}]
-    window.XLSX.utils.book_append_sheet(wb, ws, 'Factura')
-    window.XLSX.writeFile(wb, 'Factura_'+factura.numero+'.xlsx')
+    XLSX.utils.book_append_sheet(wb, ws, 'Factura')
+    XLSX.writeFile(wb, 'Factura_'+factura.numero+'.xlsx')
   }
   async function enviarFacturaEmail(factura) {
     setSendingEmail(true)
@@ -876,8 +883,6 @@ export default function Dashboard() {
   }
 
   function generarXlsxCot(c) {
-    const XLSX = window.XLSX
-    if (!XLSX) { alert('Cargando librería Excel, intenta de nuevo'); return }
     const items = c.cotizacion_items || []
     const wsData = [
       ['COTIZACIÓN', c.numero || '', '', ''],
@@ -1557,8 +1562,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" async></script>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" async></script>
     </div>
   )
 }
