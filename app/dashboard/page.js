@@ -1,8 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { jsPDF } from 'jspdf'
 import * as XLSX from 'xlsx'
+
+let _jsPDF = null
+if (typeof window !== 'undefined') {
+  import('jspdf').then(m => { _jsPDF = m.jsPDF || m.default })
+}
 
 export default function Dashboard() {
   const router = useRouter()
@@ -146,7 +150,7 @@ export default function Dashboard() {
   }
 
   function generarPdfRemision(r) {
-    const jsPDF = window.jspdf?.jsPDF; if (!jsPDF) { alert('Cargando PDF, intenta de nuevo'); return null }
+    const jsPDF = _jsPDF; if (!jsPDF) { alert('Cargando PDF, intenta de nuevo'); return null }
     const items = r.remision_items || []
     const rem = remitentes.find(x => x.nombre === r.remitente_nombre)
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
@@ -283,8 +287,7 @@ export default function Dashboard() {
   }
   async function delFactura(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/facturas/'+id, 'DELETE'); await loadAll() }
   async function generarFacturaPDF(factura, abrir = true) {
-    const jsPDF = window.jspdf?.jsPDF
-    if (!jsPDF) { alert('Cargando PDF, intenta de nuevo'); return null }
+    const jsPDF = _jsPDF; if (!jsPDF) { alert('Cargando PDF, intenta de nuevo'); return null }
     const doc = new jsPDF({ unit:'mm', format:'letter' })
     const W=216, m=14, cw=W-m*2
     const items = factura.factura_items || []
@@ -659,7 +662,7 @@ export default function Dashboard() {
   async function delCotizacion(id) { if (!window.confirm('¿Seguro que desea eliminar?')) return; await api('/api/cotizaciones/' + id, 'DELETE'); await loadAll() }
 
   function generarPdfCotOficial(c) {
-    const jsPDF = window.jspdf?.jsPDF; if (!jsPDF) { alert('Cargando PDF'); return null }
+    const jsPDF = _jsPDF; if (!jsPDF) { alert('Cargando PDF, intenta de nuevo'); return null }
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight()
     const ml = 15, usable = pw - 30
@@ -739,7 +742,7 @@ export default function Dashboard() {
 
 
   function generarPdfCotSabana(c) {
-    const jsPDF = window.jspdf?.jsPDF; if (!jsPDF) { alert('Cargando PDF'); return null }
+    const jsPDF = _jsPDF; if (!jsPDF) { alert('Cargando PDF, intenta de nuevo'); return null }
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight(), ml = 15, usable = pw - 30
     let y = 15
@@ -801,7 +804,7 @@ export default function Dashboard() {
 
 
   function generarPdfCotFenny(c) {
-    const jsPDF = window.jspdf?.jsPDF; if (!jsPDF) { alert('Cargando PDF'); return null }
+    const jsPDF = _jsPDF; if (!jsPDF) { alert('Cargando PDF, intenta de nuevo'); return null }
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight(), ml = 15, usable = pw - 30
     let y = 15
