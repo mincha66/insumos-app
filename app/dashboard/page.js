@@ -1067,7 +1067,7 @@ export default function Dashboard() {
             <div>
               <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
                 {['Alejandro', 'Mincha', 'Santiago'].map(c => (
-                  <button key={c} onClick={() => { setCurrentCaja(c); loadCaja(c) }}
+                  <button key={c} onClick={() => { setCurrentCaja(c); setCajaMovs([]); loadCaja(c) }}
                     style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid', cursor: 'pointer', fontSize: 13, fontWeight: 500, background: currentCaja === c ? '#1a56db' : '#fff', borderColor: currentCaja === c ? '#1a56db' : '#dde1ea', color: currentCaja === c ? '#fff' : '#6b7280' }}>
                     💼 Caja {c}
                   </button>
