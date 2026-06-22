@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   const api = useCallback(async (url, method = 'GET', body = null) => {
     const t = localStorage.getItem('token')
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t }, body: body ? JSON.stringify(body) : null })
+    const res = await fetch(url, { method, cache: 'no-store', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t }, body: body ? JSON.stringify(body) : null })
     if (res.status === 401) { router.push('/login'); return null }
     return res.json()
   }, [router])
