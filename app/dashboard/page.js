@@ -21,6 +21,8 @@ export default function Dashboard() {
   const [cajaMovs, setCajaMovs] = useState([])
   const [currentCaja, setCurrentCaja] = useState('Alejandro')
   const [cajaSortDesc, setCajaSortDesc] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const [modal, setModal] = useState(null)
   const [editObj, setEditObj] = useState(null)
   const [remItems, setRemItems] = useState({})
@@ -43,6 +45,13 @@ export default function Dashboard() {
   const cotItemsRef = useRef([])
 
   useEffect(() => { const t = localStorage.getItem('token'); if (!t) { router.push('/login'); return }; setToken(t) }, [router])
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const api = useCallback(async (url, method = 'GET', body = null) => {
     const t = localStorage.getItem('token')
@@ -930,14 +939,18 @@ export default function Dashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
-      <aside style={{ width: 220, background: '#1e3a5f', borderRight: '1px solid #1a3050', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      {isMobile && sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 999 }} />
+      )}
+      <aside style={{ width: 220, background: '#1e3a5f', borderRight: '1px solid #1a3050', display: 'flex', flexDirection: 'column', flexShrink: 0, ...(isMobile ? { position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 1000, transform: sidebarOpen ? 'translateX(0)' : 'translateX(-220px)', transition: 'transform 0.25s ease' } : {}) }}>
         <div style={{ padding: '20px 16px', borderBottom: '1px solid #1a3050', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 32, height: 32, background: '#1a56db', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚙️</div>
           <div><div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Insumos</div><div style={{ fontSize: 10, color: '#93c5fd' }}>Sistema de gestión</div></div>
         </div>
         <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
           {navItems.map(n => (
-            <div key={n.id} onClick={() => { setPage(n.id); if (n.id === 'caja') loadCaja(currentCaja) }}
+            <div key={n.id} onClick={() => { setPage(n.id); setSidebarOpen(false); if (n.id === 'caja') loadCaja(currentCaja) }}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 6, cursor: 'pointer', marginBottom: 2, fontSize: 13, fontWeight: 500, background: page === n.id ? 'rgba(255,255,255,0.15)' : 'transparent', color: page === n.id ? '#fff' : '#93c5fd' }}>
               <span>{n.icon}</span>{n.label}
             </div>
@@ -952,7 +965,13 @@ export default function Dashboard() {
       </aside>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f4f6f9' }}>
-        <div style={{ height: 56, borderBottom: '1px solid #dde1ea', display: 'flex', alignItems: 'center', padding: '0 24px', background: '#fff' }}>
+        <div style={{ height: 56, borderBottom: '1px solid #dde1ea', display: 'flex', alignItems: 'center', padding: '0 16px', background: '#fff', gap: 12 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(v => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', padding: '4px 6px', borderRadius: 6, lineHeight: 1 }}>
+              ☰
+            </button>
+          )}
           <div style={{ fontSize: 16, fontWeight: 600, color: '#111928' }}>{navItems.find(n => n.id === page)?.label}</div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
